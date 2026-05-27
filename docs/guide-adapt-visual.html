@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>适配指南 · 可视化</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  [data-theme="dark"] {
+    color-scheme: dark;
+    --bg: #1a1a2e; --bg2: #16213e; --bg3: #0f3460;
+    --text: #e0d8c8; --text2: #a09880; --text3: #6c6454;
+    --border: #2a2a4a; --accent: #d4a76a; --accent2: #e0b878;
+    --green: #a5d6a7; --blue: #90caf9; --red: #ef9a9a;
+    --shadow: rgba(0,0,0,0.4);
+  }
+  [data-theme="light"] {
+    color-scheme: light;
+    --bg: #f8f4ec; --bg2: #f0ece4; --bg3: #fffdf7;
+    --text: #2c2416; --text2: #8b7355; --text3: #9e9e9e;
+    --border: #e0d8c8; --accent: #8b4513; --accent2: #a0551e;
+    --green: #2e7d32; --blue: #1565c0; --red: #c62828;
+    --shadow: rgba(139,69,19,0.08);
+  }
+
+  body {
+    font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: var(--bg); color: var(--text);
+    line-height: 1.8; transition: background 0.3s, color 0.3s;
+  }
+
+  .theme-toggle {
+    position: fixed; top: 16px; right: 16px;
+    padding: 6px 14px; background: var(--bg3); color: var(--text);
+    border: 1px solid var(--border); border-radius: 6px;
+    cursor: pointer; font-size: 14px; z-index: 1000;
+  }
+  .theme-toggle:hover { border-color: var(--accent); }
+
+  .container { max-width: 900px; margin: 0 auto; padding: 40px 24px; }
+
+  h1 { font-size: 28px; margin-bottom: 8px; color: var(--accent); }
+  .subtitle { color: var(--text2); margin-bottom: 40px; }
+
+  h2 {
+    font-size: 20px; margin: 48px 0 20px; padding-bottom: 8px;
+    border-bottom: 2px solid var(--accent); color: var(--accent);
+  }
+  h3 { font-size: 16px; margin: 24px 0 12px; color: var(--accent2); }
+
+  p { margin-bottom: 16px; }
+
+  .card {
+    background: var(--bg3); border: 1px solid var(--border);
+    border-radius: 8px; padding: 24px; margin-bottom: 24px;
+    box-shadow: 0 2px 8px var(--shadow);
+  }
+
+  /* 流程图 */
+  .flow { display: flex; flex-direction: column; align-items: center; gap: 0; margin: 24px 0; }
+  .flow-row { display: flex; align-items: center; gap: 16px; width: 100%; justify-content: center; }
+  .flow-step {
+    padding: 12px 20px; border-radius: 8px; text-align: center;
+    font-weight: 600; font-size: 14px; min-width: 120px;
+  }
+  .flow-arrow { font-size: 24px; color: var(--text3); }
+  .flow-down { color: var(--text3); font-size: 24px; margin: 4px 0; }
+
+  .step-warm { background: #3a2a1a; color: #d4a76a; border: 2px solid #d4a76a; }
+  .step-blue  { background: #1a2a3a; color: #90caf9; border: 2px solid #90caf9; }
+  .step-green { background: #1a2a1a; color: #a5d6a7; border: 2px solid #a5d6a7; }
+
+  [data-theme="light"] .step-warm { background: #fff8ed; color: #8b4513; border-color: #8b4513; }
+  [data-theme="light"] .step-blue  { background: #e8f0fe; color: #1565c0; border-color: #1565c0; }
+  [data-theme="light"] .step-green { background: #e8f5e9; color: #2e7d32; border-color: #2e7d32; }
+
+  /* 表格 */
+  table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+  th {
+    background: var(--bg2); color: var(--text); text-align: left;
+    padding: 10px 14px; border-bottom: 2px solid var(--border); font-size: 13px;
+  }
+  td {
+    padding: 10px 14px; border-bottom: 1px solid var(--border);
+    color: var(--text2); font-size: 13px;
+  }
+  tr:hover td { background: var(--bg2); }
+
+  /* 代码块 */
+  pre {
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: 6px; padding: 16px; overflow-x: auto;
+    font-size: 13px; line-height: 1.6; margin: 16px 0;
+  }
+  code { color: var(--accent); }
+  pre code { color: var(--text); }
+
+  /* 标签 */
+  .tag {
+    display: inline-block; padding: 2px 10px; border-radius: 12px;
+    font-size: 12px; font-weight: 600; margin: 2px;
+  }
+  .tag-warm { background: #3a2a1a; color: #d4a76a; }
+  .tag-blue { background: #1a2a3a; color: #90caf9; }
+  .tag-green { background: #1a2a1a; color: #a5d6a7; }
+
+  [data-theme="light"] .tag-warm { background: #fff3e0; color: #8b4513; }
+  [data-theme="light"] .tag-blue { background: #e3f2fd; color: #1565c0; }
+  [data-theme="light"] .tag-green { background: #e8f5e9; color: #2e7d32; }
+
+  /* 判断图 */
+  .decision {
+    display: flex; flex-direction: column; align-items: center; gap: 8px;
+    margin: 20px 0;
+  }
+  .decision-q {
+    background: var(--bg2); border: 2px solid var(--accent);
+    border-radius: 50%; width: 160px; height: 80px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 600; text-align: center; padding: 8px;
+  }
+  .decision-branches { display: flex; gap: 40px; }
+  .decision-branch { text-align: center; }
+  .decision-branch .label { font-weight: 600; color: var(--accent); margin-bottom: 8px; }
+  .decision-branch .result {
+    padding: 10px 16px; border-radius: 6px; font-size: 13px;
+  }
+
+  @media (max-width: 768px) {
+    .flow-row { flex-direction: column; gap: 4px; }
+    .flow-arrow { transform: rotate(90deg); }
+    .decision-branches { flex-direction: column; gap: 16px; }
+  }
+</style>
+</head>
+<body>
+
+<button class="theme-toggle" onclick="toggleTheme()">🌙</button>
+
+<div class="container">
+  <h1>适配其他经典 — 可视化指南</h1>
+  <p class="subtitle">将唐诗三百首注音网页版适配到论语、道德经、大学中庸等经典文献</p>
+
+  <!-- 整体流程 -->
+  <h2>整体流程</h2>
+  <div class="flow">
+    <div class="flow-row">
+      <div class="flow-step step-warm">① 准备 Markdown<br/>源文件</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step step-blue">② 调整 build.js<br/>解析规则</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step step-green">③ 运行构建</div>
+    </div>
+    <div class="flow-down">↓</div>
+    <div class="flow-row">
+      <div class="flow-step step-blue">④ 调整页面样式</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step step-green">⑤ 部署上线</div>
+    </div>
+  </div>
+
+  <!-- Markdown 格式 -->
+  <h2>Markdown 源文件格式</h2>
+  <p>源文件必须遵循以下标记规则：</p>
+  <div class="card">
+    <pre><code>## 卷01-学而第一                    ← 卷标题（##）
+                                      ← 空行分隔
+### 001 学而第一                      ← 篇章（### 编号 标题）
+> 孔子                                ← 作者（> 开头）
+                                      ← 空行分隔
+子曰：「学而时习之，不亦说乎？         ← 正文（逐字注音）
+有朋自远方来，不亦乐乎？               ← 正文续行
+人不知而不愠，不亦君子乎？」</code></pre>
+  </div>
+
+  <table>
+    <tr><th>标记</th><th>含义</th><th>示例</th></tr>
+    <tr><td><code>## </code></td><td>卷/篇标题</td><td><code>## 卷01-学而第一</code></td></tr>
+    <tr><td><code>### NNN 标题</code></td><td>篇章标题+编号</td><td><code>### 001 学而第一</code></td></tr>
+    <tr><td><code>&gt; </code></td><td>作者/出处</td><td><code>&gt; 孔子</code></td></tr>
+    <tr><td>空行</td><td>分隔</td><td>篇与篇之间</td></tr>
+    <tr><td>其他行</td><td>正文</td><td>逐字注音</td></tr>
+  </table>
+
+  <!-- 数据管线 -->
+  <h2>数据管线</h2>
+  <div class="flow">
+    <div class="flow-row">
+      <div class="flow-step step-warm">Markdown 源文件</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step step-blue">build.js 解析</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step step-blue">pinyin-pro 注音</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step step-green">data.json + index.html</div>
+    </div>
+  </div>
+
+  <p>输出的 <code>data.json</code> 结构：</p>
+  <div class="card">
+    <pre><code>{
+  "volumes": [
+    { "id": "juan01", "name": "学而第一" }
+  ],
+  "poems": [
+    {
+      "id": 1, "number": "001", "title": "学而第一",
+      "author": "孔子", "volumeId": "juan01",
+      "lines": [
+        {
+          "text": "子曰学而时习之",
+          "chars": [
+            { "char": "子", "pinyin": "zǐ" },
+            { "char": "曰", "pinyin": "yuē" },
+            { "char": "学", "pinyin": "xué" },
+            ...
+          ]
+        }
+      ]
+    }
+  ]
+}</code></pre>
+  </div>
+
+  <!-- 适配判断 -->
+  <h2>适配决策树</h2>
+  <p>不同文献的格式不同，需要根据以下问题调整 build.js：</p>
+
+  <div class="decision">
+    <div class="decision-q">文献是否有<br/>卷/篇划分？</div>
+    <div class="decision-branches">
+      <div class="decision-branch">
+        <div class="label">有</div>
+        <div class="result step-green">保持 ## 解析逻辑<br/>对应 volumes[]</div>
+      </div>
+      <div class="decision-branch">
+        <div class="label">没有</div>
+        <div class="result step-blue">创建一个虚拟卷<br/>所有篇章归入</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="decision">
+    <div class="decision-q">每篇作者<br/>是否固定？</div>
+    <div class="decision-branches">
+      <div class="decision-branch">
+        <div class="label">是（如老子）</div>
+        <div class="result step-blue">写死 poem.author<br/>去掉 &gt; 解析</div>
+      </div>
+      <div class="decision-branch">
+        <div class="label">否（如古文观止）</div>
+        <div class="result step-green">保持 &gt; 解析</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="decision">
+    <div class="decision-q">编号格式<br/>是否为 ### NNN？</div>
+    <div class="decision-branches">
+      <div class="decision-branch">
+        <div class="label">是</div>
+        <div class="result step-green">保持正则不变</div>
+      </div>
+      <div class="decision-branch">
+        <div class="label">否（如第一章）</div>
+        <div class="result step-blue">修改正则匹配<br/>自动编号</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 适配示例 -->
+  <h2>适配示例速查</h2>
+
+  <h3>《论语》— 20 篇，固定作者孔子</h3>
+  <div class="card">
+    <table>
+      <tr><th>项目</th><th>调整</th></tr>
+      <tr><td>分卷</td><td>保持 20 篇分卷</td></tr>
+      <tr><td>作者</td><td>写死 <code>poem.author = '孔子'</code></td></tr>
+      <tr><td>页面标题</td><td>论语 · 注音版</td></tr>
+      <tr><td>作者前缀</td><td>〔春秋〕</td></tr>
+      <tr><td>默认字体</td><td>宋体或楷体</td></tr>
+    </table>
+  </div>
+
+  <h3>《道德经》— 81 章，无分卷，固定作者老子</h3>
+  <div class="card">
+    <table>
+      <tr><th>项目</th><th>调整</th></tr>
+      <tr><td>分卷</td><td>创建一个虚拟卷「道德经」</td></tr>
+      <tr><td>作者</td><td>写死 <code>poem.author = '老子'</code></td></tr>
+      <tr><td>编号</td><td>修改正则，支持「第一章」格式</td></tr>
+      <tr><td>页面标题</td><td>道德经 · 注音版</td></tr>
+      <tr><td>作者前缀</td><td>〔春秋〕</td></tr>
+    </table>
+  </div>
+
+  <h3>《诗经》— 305 篇，按风雅颂分卷</h3>
+  <div class="card">
+    <table>
+      <tr><th>项目</th><th>调整</th></tr>
+      <tr><td>分卷</td><td>国风/小雅/大雅/颂 各为一卷</td></tr>
+      <tr><td>作者</td><td>多为「佚名」，保持 &gt; 解析或写死</td></tr>
+      <tr><td>页面标题</td><td>诗经 · 注音版</td></tr>
+      <tr><td>作者前缀</td><td>〔周〕</td></tr>
+      <tr><td>注意事项</td><td>古字较多，pinyin-pro 可能部分无法注音</td></tr>
+    </table>
+  </div>
+
+  <h3>《大学》《中庸》— 篇幅短，不分卷</h3>
+  <div class="card">
+    <table>
+      <tr><th>项目</th><th>调整</th></tr>
+      <tr><td>分卷</td><td>各创建一个虚拟卷</td></tr>
+      <tr><td>分篇</td><td>按传统章节分段（如「大学之道」为一章）</td></tr>
+      <tr><td>作者</td><td>写死（大学：曾子，中庸：子思）</td></tr>
+      <tr><td>作者前缀</td><td>〔战国〕</td></tr>
+    </table>
+  </div>
+
+  <!-- 快速步骤 -->
+  <h2>快速步骤</h2>
+  <div class="flow">
+    <div class="flow-row">
+      <div class="flow-step step-warm">准备 .md 源文件</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step step-blue">修改 build.js</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step step-blue">修改 index.html</div>
+    </div>
+    <div class="flow-down">↓</div>
+    <div class="flow-row">
+      <div class="flow-step step-green">npm run build</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step step-green">npm run preview</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step step-green">部署到 Pages</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <pre><code># 1. 克隆项目
+git clone https://github.com/yourname/pinyin.git my-classic
+cd my-classic
+npm install
+
+# 2. 放入源文件
+cp 论语.txt docs/论语.md
+
+# 3. 编辑 build.js（改 inputFile 路径 + 解析规则）
+# 4. 编辑 src/index.html（改标题 + 作者前缀）
+# 5. 构建 & 预览
+npm run build
+npm run preview
+
+# 6. 确认无误后部署
+git add . && git commit -m "init: 论语注音版"
+git push</code></pre>
+  </div>
+</div>
+
+<script>
+function toggleTheme() {
+  const html = document.documentElement;
+  const next = html.dataset.theme === 'dark' ? 'light' : 'dark';
+  html.dataset.theme = next;
+  localStorage.setItem('theme', next);
+  document.querySelector('.theme-toggle').textContent = next === 'dark' ? '🌙' : '☀️';
+}
+const saved = localStorage.getItem('theme');
+if (saved) document.documentElement.dataset.theme = saved;
+</script>
+</body>
+</html>

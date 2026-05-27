@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="zh-Hans" data-theme="dark">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>开发规划 · 唐诗三百首注音网页版</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  /* ===== 暗色主题（默认） ===== */
+  [data-theme="dark"] {
+    color-scheme: dark;
+    --bg-primary:    #1a1a2e;
+    --bg-secondary:  #16213e;
+    --bg-card:       #0f3460;
+    --bg-hover:      #1a3a5c;
+    --text-primary:  #e0d8c8;
+    --text-secondary:#a09880;
+    --text-muted:    #6c6454;
+    --border:        #2a2a4a;
+    --accent:        #d4a76a;
+    --accent-blue:   #90caf9;
+    --accent-green:  #a5d6a7;
+    --accent-brown:  #d4a76a;
+    --accent-pink:   #ef9a9a;
+    --shadow:        rgba(0,0,0,0.4);
+    --pinyin-color:  #d4a76a;
+  }
+
+  /* ===== 浅色主题 ===== */
+  [data-theme="light"] {
+    color-scheme: light;
+    --bg-primary:    #f8f6f1;
+    --bg-secondary:  #f0ece4;
+    --bg-card:       #fffdf8;
+    --bg-hover:      #fdf8ed;
+    --text-primary:  #2c2416;
+    --text-secondary:#5a4a2e;
+    --text-muted:    #8b7355;
+    --border:        #e0d8c8;
+    --accent:        #8b6914;
+    --accent-blue:   #3b7dd8;
+    --accent-green:  #4a8b14;
+    --accent-brown:  #8b5a14;
+    --accent-pink:   #8b144a;
+    --shadow:        rgba(0,0,0,0.06);
+    --pinyin-color:  #8b6914;
+  }
+
+  body {
+    font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+    line-height: 1.8;
+    transition: background 0.3s, color 0.3s;
+  }
+
+  .container { max-width: 1100px; margin: 0 auto; padding: 40px 24px; }
+
+  h1 { font-size: 28px; margin-bottom: 8px; border-bottom: 3px solid var(--accent); padding-bottom: 12px; }
+  h1 small { font-size: 14px; color: var(--accent); font-weight: normal; }
+  h2 { font-size: 20px; margin: 40px 0 16px; padding-left: 12px; border-left: 4px solid var(--accent); }
+  h3 { font-size: 16px; margin: 24px 0 12px; color: var(--text-secondary); }
+
+  .subtitle { color: var(--accent); font-size: 14px; margin-bottom: 32px; }
+  .subtitle a { color: var(--accent-blue); }
+
+  /* 主题切换 */
+  .theme-toggle {
+    position: fixed; top: 16px; right: 16px;
+    padding: 6px 14px; background: var(--bg-card);
+    color: var(--text-primary); border: 1px solid var(--border);
+    border-radius: 6px; cursor: pointer; font-size: 16px; z-index: 1000;
+    transition: background 0.2s;
+  }
+  .theme-toggle:hover { background: var(--bg-hover); }
+
+  /* 卡片 */
+  .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: 8px; padding: 24px; margin: 16px 0; box-shadow: 0 1px 3px var(--shadow); }
+  .card-title { font-weight: 600; font-size: 15px; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; }
+  .card-title .icon { width: 20px; height: 20px; display: inline-flex; align-items: center; justify-content: center; border-radius: 4px; font-size: 12px; color: #fff; }
+
+  /* 架构图 */
+  .arch-flow { display: flex; align-items: stretch; gap: 0; overflow-x: auto; padding: 20px 0; }
+  .arch-phase { flex: 1; min-width: 280px; }
+  .arch-phase-header { text-align: center; padding: 8px 16px; font-weight: 600; font-size: 14px; border-radius: 6px 6px 0 0; }
+  .arch-phase-body { border: 1px solid var(--border); border-top: none; border-radius: 0 0 6px 6px; padding: 16px; background: var(--bg-card); }
+  .arch-node { background: var(--bg-secondary); border: 1px solid var(--border); border-radius: 6px; padding: 8px 14px; margin: 8px 0; font-size: 13px; text-align: center; }
+  .arch-node.highlight { border-color: var(--accent); background: var(--bg-hover); }
+  .arch-arrow { text-align: center; color: var(--accent); font-size: 20px; margin: 4px 0; }
+  .arch-bridge { display: flex; align-items: center; justify-content: center; min-width: 40px; font-size: 24px; color: var(--accent); }
+
+  /* 任务表 */
+  .task-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .task-table th { background: var(--bg-secondary); text-align: left; padding: 10px 12px; border-bottom: 2px solid var(--accent); font-weight: 600; white-space: nowrap; color: var(--text-primary); }
+  .task-table td { padding: 8px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  .task-table tr:hover td { background: var(--bg-hover); }
+  .task-table code { background: var(--bg-secondary); color: var(--accent-blue); padding: 1px 4px; border-radius: 3px; font-size: 12px; }
+
+  .phase-tag { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; color: #fff; }
+  .phase-1 { background: var(--accent-blue); }
+  .phase-2 { background: var(--accent-brown); }
+  .phase-3 { background: var(--accent-green); }
+  .phase-4 { background: var(--accent-pink); }
+
+  /* 竖排预览 */
+  .vertical-demo { writing-mode: vertical-rl; text-orientation: upright; background: var(--bg-secondary); border: 2px solid var(--accent); border-radius: 8px; padding: 32px 24px; height: 320px; display: flex; justify-content: center; font-family: "Noto Serif SC", "Source Han Serif SC", "SimSun", serif; font-size: 22px; line-height: 2.2; letter-spacing: 2px; color: var(--text-primary); }
+  .vertical-demo rt { font-size: 0.4em; font-family: sans-serif; color: var(--pinyin-color); letter-spacing: 0; }
+  .vertical-demo .hang { color: var(--accent); }
+  .vertical-demo .author { font-size: 16px; color: var(--text-secondary); margin-left: 12px; }
+  .vertical-demo .title-line { font-size: 24px; font-weight: 600; }
+
+  /* 甘特图简化 */
+  .gantt { margin: 16px 0; }
+  .gantt-row { display: flex; align-items: center; margin: 3px 0; font-size: 12px; }
+  .gantt-label { width: 140px; text-align: right; padding-right: 12px; white-space: nowrap; color: var(--text-secondary); flex-shrink: 0; }
+  .gantt-bar-container { flex: 1; position: relative; height: 24px; }
+  .gantt-bar { position: absolute; height: 20px; top: 2px; border-radius: 4px; min-width: 20px; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 10px; font-weight: 600; }
+  .gantt-phase { font-size: 11px; color: var(--text-muted); margin: 8px 0 2px; padding-left: 152px; }
+
+  /* 决策表 */
+  .decision-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .decision-table th { background: var(--bg-secondary); text-align: left; padding: 10px 12px; border-bottom: 2px solid var(--accent); color: var(--text-primary); }
+  .decision-table td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
+  .decision-table td:first-child { font-weight: 600; white-space: nowrap; }
+</style>
+</head>
+<body>
+
+<button class="theme-toggle" id="themeBtn">🌙</button>
+
+<div class="container">
+
+<h1>开发规划 <small>唐诗三百首注音网页版（古籍竖排）</small></h1>
+<p class="subtitle">配套文档：<a href="prd-web.html">PRD</a> · <a href="dev-plan.md">dev-plan.md（含 Mermaid 图）</a></p>
+
+<!-- ==================== 架构全景 ==================== -->
+<h2>架构全景</h2>
+<div class="card">
+  <div class="arch-flow">
+    <div class="arch-phase">
+      <div class="arch-phase-header" style="background:var(--accent-blue);color:#fff;">构建阶段 (Node.js)</div>
+      <div class="arch-phase-body">
+        <div class="arch-node">唐诗三百首.md</div>
+        <div class="arch-arrow">↓ 解析</div>
+        <div class="arch-node">结构化数据<br/><small>卷 → 诗 → 作者 → 正文行</small></div>
+        <div class="arch-arrow">↓ 注音</div>
+        <div class="arch-node">pinyin-pro<br/><small>逐字生成拼音</small></div>
+        <div class="arch-arrow">↓ 输出</div>
+        <div class="arch-node highlight">dist/data.json</div>
+      </div>
+    </div>
+    <div class="arch-bridge">→</div>
+    <div class="arch-phase">
+      <div class="arch-phase-header" style="background:var(--accent-green);color:#fff;">运行阶段 (浏览器)</div>
+      <div class="arch-phase-body">
+        <div class="arch-node">index.html</div>
+        <div class="arch-arrow">↓ fetch</div>
+        <div class="arch-node highlight">data.json</div>
+        <div class="arch-arrow">↓ 渲染</div>
+        <div class="arch-node">JS 渲染器<br/><small>ruby + 赫蹏类名</small></div>
+        <div class="arch-arrow">↓ 排版</div>
+        <div class="arch-node highlight">竖排注音页面</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== 竖排效果预览 ==================== -->
+<h2>目标效果预览</h2>
+<div class="card">
+  <div class="card-title"><span class="icon" style="background:var(--accent-brown);">预</span> 古籍竖排 + 注音（使用赫蹏 heti + ruby）</div>
+  <div style="display:flex; justify-content:center;">
+    <div class="vertical-demo">
+      <div style="display:inline-block;">
+        <div class="title-line">感遇其一</div>
+        <div class="author">张九龄</div>
+        <br/>
+        <ruby>孤<rp>(</rp><rt>gū</rt><rp>)</rp></ruby>
+        <ruby>鸿<rp>(</rp><rt>hóng</rt><rp>)</rp></ruby>
+        <ruby>海<rp>(</rp><rt>hǎi</rt><rp>)</rp></ruby>
+        <ruby>上<rp>(</rp><rt>shàng</rt><rp>)</rp></ruby>
+        <ruby>来<rp>(</rp><rt>lái</rt><rp>)</rp></ruby>
+        <span class="hang">，</span>
+        <ruby>池<rp>(</rp><rt>chí</rt><rp>)</rp></ruby>
+        <ruby>潢<rp>(</rp><rt>huáng</rt><rp>)</rp></ruby>
+        <ruby>不<rp>(</rp><rt>bù</rt><rp>)</rp></ruby>
+        <ruby>敢<rp>(</rp><rt>gǎn</rt><rp>)</rp></ruby>
+        <ruby>顾<rp>(</rp><rt>gù</rt><rp>)</rp></ruby>
+        <span class="hang">；</span>
+        <br/>
+        <ruby>侧<rp>(</rp><rt>cè</rt><rp>)</rp></ruby>
+        <ruby>见<rp>(</rp><rt>jiàn</rt><rp>)</rp></ruby>
+        <ruby>双<rp>(</rp><rt>shuāng</rt><rp>)</rp></ruby>
+        <ruby>翠<rp>(</rp><rt>cuì</rt><rp>)</rp></ruby>
+        <ruby>鸟<rp>(</rp><rt>niǎo</rt><rp>)</rp></ruby>
+        <span class="hang">，</span>
+        <ruby>巢<rp>(</rp><rt>cháo</rt><rp>)</rp></ruby>
+        <ruby>在<rp>(</rp><rt>zài</rt><rp>)</rp></ruby>
+        <ruby>三<rp>(</rp><rt>sān</rt><rp>)</rp></ruby>
+        <ruby>珠<rp>(</rp><rt>zhū</rt><rp>)</rp></ruby>
+        <ruby>树<rp>(</rp><rt>shù</rt><rp>)</rp></ruby>
+        <span class="hang">。</span>
+      </div>
+    </div>
+  </div>
+  <p style="text-align:center; font-size:12px; color:var(--text-muted); margin-top:12px;">文字从上到下，列从右到左 · 拼音显示在汉字右侧（行间注） · 标点悬挂</p>
+</div>
+
+<!-- ==================== 阶段总览 ==================== -->
+<h2>五阶段总览</h2>
+
+<div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin: 16px 0;">
+  <div class="card" style="border-top: 3px solid var(--accent-blue);">
+    <div class="card-title"><span class="phase-tag phase-1">阶段一</span> 数据管线</div>
+    <p style="font-size:13px;">build.js：解析 markdown → 逐字注音 → 输出 data.json</p>
+    <p style="font-size:12px; color:var(--text-muted); margin-top:8px;">5 个任务 · 产出：dist/data.json</p>
+  </div>
+  <div class="card" style="border-top: 3px solid var(--accent-brown);">
+    <div class="card-title"><span class="phase-tag phase-2">阶段二</span> 页面骨架</div>
+    <p style="font-size:13px;">index.html：布局骨架 + 赫蹏排版 + 诗文渲染</p>
+    <p style="font-size:12px; color:var(--text-muted); margin-top:8px;">6 个任务 · 产出：可运行的页面</p>
+  </div>
+  <div class="card" style="border-top: 3px solid var(--accent-green);">
+    <div class="card-title"><span class="phase-tag phase-3">阶段三</span> 导航交互</div>
+    <p style="font-size:13px;">切换/搜索/路由/移动端适配</p>
+    <p style="font-size:12px; color:var(--text-muted); margin-top:8px;">6 个任务 · 产出：完整功能</p>
+  </div>
+  <div class="card" style="border-top: 3px solid var(--accent-pink);">
+    <div class="card-title"><span class="phase-tag phase-4">阶段四</span> 打磨发布</div>
+    <p style="font-size:13px;">验证/兼容性/性能/部署 GitHub Pages</p>
+    <p style="font-size:12px; color:var(--text-muted); margin-top:8px;">4 个任务 · 产出：线上可访问</p>
+  </div>
+  <div class="card" style="border-top: 3px solid var(--accent);">
+    <div class="card-title"><span class="phase-tag" style="background:var(--accent);">阶段五</span> 设置面板</div>
+    <p style="font-size:13px;">主题/字体/字距/行距/拼音/排版方向</p>
+    <p style="font-size:12px; color:var(--text-muted); margin-top:8px;">6 个任务 · localStorage 持久化</p>
+  </div>
+</div>
+
+<!-- ==================== 任务明细 ==================== -->
+<h2>任务明细与依赖</h2>
+
+<table class="task-table">
+  <thead>
+    <tr>
+      <th>#</th>
+      <th>阶段</th>
+      <th>任务</th>
+      <th>产出</th>
+      <th>依赖</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr><td>1.1</td><td><span class="phase-tag phase-1">一</span></td><td>Markdown 行解析器：识别 ## / ### / > / 空行 / 正文</td><td><code>parseMarkdown()</code></td><td>—</td></tr>
+    <tr><td>1.2</td><td><span class="phase-tag phase-1">一</span></td><td>逐字注音模块：汉字→pinyin-pro，标点保留</td><td><code>annotateChars()</code></td><td>1.1</td></tr>
+    <tr><td>1.3</td><td><span class="phase-tag phase-1">一</span></td><td>组装 JSON 结构（volumes + poems），写入 dist/data.json</td><td>build.js 主流程</td><td>1.1, 1.2</td></tr>
+    <tr><td>1.4</td><td><span class="phase-tag phase-1">一</span></td><td>复制 index.html → dist/，添加 npm scripts</td><td>package.json 更新</td><td>1.3</td></tr>
+    <tr><td>1.5</td><td><span class="phase-tag phase-1">一</span></td><td>端到端验证：运行 build，检查 JSON</td><td>验证通过</td><td>1.4</td></tr>
+    <tr><td>2.1</td><td><span class="phase-tag phase-2">二</span></td><td>HTML 骨架：顶栏 + 侧栏 + 内容区 + 底栏</td><td>src/index.html</td><td>—</td></tr>
+    <tr><td>2.2</td><td><span class="phase-tag phase-2">二</span></td><td>引入 heti CSS/JS + 自定义样式</td><td>&lt;style&gt; 部分</td><td>2.1</td></tr>
+    <tr><td>2.3</td><td><span class="phase-tag phase-2">二</span></td><td>数据加载：fetch data.json → 全局状态</td><td><code>loadData()</code></td><td>2.1</td></tr>
+    <tr><td>2.4</td><td><span class="phase-tag phase-2">二</span></td><td>侧栏渲染：按卷分组诗列表，点击切换</td><td><code>renderSidebar()</code></td><td>2.3</td></tr>
+    <tr><td>2.5</td><td><span class="phase-tag phase-2">二</span></td><td>诗文渲染：ruby HTML + 赫蹏类名生成</td><td><code>renderPoem()</code></td><td>2.3</td></tr>
+    <tr><td>2.6</td><td><span class="phase-tag phase-2">二</span></td><td>端到端验证：浏览器确认竖排注音效果</td><td>验证通过</td><td>2.4, 2.5</td></tr>
+    <tr><td>3.1</td><td><span class="phase-tag phase-3">三</span></td><td>上一首/下一首按钮 + 键盘箭头</td><td>导航控件</td><td>阶段二</td></tr>
+    <tr><td>3.2</td><td><span class="phase-tag phase-3">三</span></td><td>侧栏当前诗高亮 + 自动滚动</td><td>侧栏联动</td><td>阶段二</td></tr>
+    <tr><td>3.3</td><td><span class="phase-tag phase-3">三</span></td><td>底栏 "第X首/共310首" 状态更新</td><td>底栏状态</td><td>阶段二</td></tr>
+    <tr><td>3.4</td><td><span class="phase-tag phase-3">三</span></td><td>URL hash 路由（#poem-001），支持分享</td><td>hash 路由</td><td>3.1</td></tr>
+    <tr><td>3.5</td><td><span class="phase-tag phase-3">三</span></td><td>搜索框：按标题/作者/诗句过滤</td><td>搜索功能</td><td>3.4</td></tr>
+    <tr><td>3.6</td><td><span class="phase-tag phase-3">三</span></td><td>移动端适配：侧栏折叠为汉堡菜单</td><td>响应式</td><td>3.5</td></tr>
+    <tr><td>4.1</td><td><span class="phase-tag phase-4">四</span></td><td>310 首诗批量渲染无报错验证</td><td>数据完整性</td><td>阶段三</td></tr>
+    <tr><td>4.2</td><td><span class="phase-tag phase-4">四</span></td><td>浏览器兼容测试</td><td>兼容性报告</td><td>4.1</td></tr>
+    <tr><td>4.3</td><td><span class="phase-tag phase-4">四</span></td><td>性能：data.json gzip 体积检查</td><td>性能基线</td><td>4.1</td></tr>
+    <tr><td>4.4</td><td><span class="phase-tag phase-4">四</span></td><td>部署到 GitHub Pages</td><td>线上可访问</td><td>4.2</td></tr>
+    <tr><td>5.1</td><td><span class="phase-tag" style="background:var(--accent);">五</span></td><td>设置面板 HTML/CSS：侧滑面板 + 表单控件</td><td>设置面板 UI</td><td>阶段四</td></tr>
+    <tr><td>5.2</td><td><span class="phase-tag" style="background:var(--accent);">五</span></td><td>明暗主题切换：CSS 变量 + data-theme</td><td>主题系统</td><td>5.1</td></tr>
+    <tr><td>5.3</td><td><span class="phase-tag" style="background:var(--accent);">五</span></td><td>排版参数控件：字体/字号/字距/行距/拼音大小</td><td>排版参数控制</td><td>5.1</td></tr>
+    <tr><td>5.4</td><td><span class="phase-tag" style="background:var(--accent);">五</span></td><td>拼音位置 + 排版方向切换</td><td>方向控制</td><td>5.3</td></tr>
+    <tr><td>5.5</td><td><span class="phase-tag" style="background:var(--accent);">五</span></td><td>localStorage 持久化 + 页面加载恢复</td><td>设置持久化</td><td>5.4</td></tr>
+    <tr><td>5.6</td><td><span class="phase-tag" style="background:var(--accent);">五</span></td><td>恢复默认按钮 + 验证联动</td><td>完整性验证</td><td>5.5</td></tr>
+  </tbody>
+</table>
+
+<!-- ==================== 简化甘特图 ==================== -->
+<h2>时间线（简化甘特）</h2>
+<div class="card">
+  <div class="gantt">
+    <div class="gantt-phase" style="color:var(--accent-blue);">■ 阶段一 · 数据管线</div>
+    <div class="gantt-row"><div class="gantt-label">1.1 Markdown解析</div><div class="gantt-bar-container"><div class="gantt-bar" style="left:0%;width:6%;background:var(--accent-blue);">1.1</div></div></div>
+    <div class="gantt-row"><div class="gantt-label">1.2 逐字注音</div><div class="gantt-bar-container"><div class="gantt-bar" style="left:6%;width:6%;background:var(--accent-blue);">1.2</div></div></div>
+    <div class="gantt-row"><div class="gantt-label">1.3 组装JSON</div><div class="gantt-bar-container"><div class="gantt-bar" style="left:12%;width:6%;background:var(--accent-blue);">1.3</div></div></div>
+    <div class="gantt-row"><div class="gantt-label">1.4 npm配置</div><div class="gantt-bar-container"><div class="gantt-bar" style="left:18%;width:3%;background:var(--accent-blue);">1.4</div></div></div>
+    <div class="gantt-row"><div class="gantt-label">1.5 验证</div><div class="gantt-bar-container"><div class="gantt-bar" style="left:21%;width:3%;background:var(--accent-blue);">1.5</div></div></div>
+
+    <div class="gantt-phase" style="color:var(--accent-brown);">■ 阶段二 · 页面骨架</div>
+    <div class="gantt-row"><div class="gantt-label">2.1 HTML骨架</div><div class="gantt-bar-container"><div class="gantt-bar" style="left:24%;width:5%;background:var(--accent-brown);">2.1</div></div></div>
+    <div class="gantt-row"><div class="gantt-label">2.2 赫蹏+样式</div><div class="gantt-bar-container"><div class="gantt-bar" style="left:29%;width:5%;background:var(--accent-brown);">2.2</div></div></div>
+    <div class="gantt-row"><div class="gantt-label">2.3 数据加载</div><div class="gantt-bar-container"><div class="gantt-bar" style="left:29%;width:5%;background:var(--accent-brown);">2.3</div></div></div>
+    <div class="gantt-row"><div class="gantt-label">2.4 侧栏渲染</div><div class="gantt-bar-container"><div class="gantt-bar" style="left:34%;width:5%;background:var(--accent-brown);">2.4</div></div></div>
+    <div class="gantt-row"><div class="gantt-label">2.5 诗文渲染</div><div class="gantt-bar-container"><div class="gantt-bar" style="left:34%;width:5%;background:var(--accent-brown);">2.5</div></div></div>
+    <div class="gantt-row"><div class="gantt-label">2.6 验证</div><div class="gantt-bar-container"><div class="gantt-bar" style="left:39%;width:3%;background:var(--accent-brown);">2.6</div></div></div>
+
+    <div class="gantt-phase" style="color:var(--accent-green);">■ 阶段三 · 导航交互</div>
+    <div class="gantt-row"><div class="gantt-label">3.1 前后切换</div><div class="gantt-bar-container"><div class="gantt-bar" style="left:42%;width:5%;background:var(--accent-green);">3.1</div></div></div>
+    <div class="gantt-row"><div class="gantt-label">3.2 侧栏联动</div><div class="gantt-bar-container"><div class="gantt-bar" style="left:42%;width:5%;background:var(--accent-green);">3.2</div></div></div>
+    <div class="gantt-row"><div class="gantt-label">3.3 底栏状态</div><div class="gantt-bar-container"><div class="gantt-bar" style="left:42%;width:3%;background:var(--accent-green);">3.3</div></div></div>
+    <div class="gantt-row"><div class="gantt-label">3.4 URL路由</div><div class="gantt-bar-container"><div class="gantt-bar" style="left:47%;width:5%;background:var(--accent-green);">3.4</div></div></div>
+    <div class="gantt-row"><div class="gantt-label">3.5 搜索</div><div class="gantt-bar-container"><div class="gantt-bar" style="left:52%;width:5%;background:var(--accent-green);">3.5</div></div></div>
+    <div class="gantt-row"><div class="gantt-label">3.6 移动端</div><div class="gantt-bar-container"><div class="gantt-bar" style="left:57%;width:5%;background:var(--accent-green);">3.6</div></div></div>
+
+    <div class="gantt-phase" style="color:var(--accent-pink);">■ 阶段四 · 打磨发布</div>
+    <div class="gantt-row"><div class="gantt-label">4.1 数据验证</div><div class="gantt-bar-container"><div class="gantt-bar" style="left:62%;width:5%;background:var(--accent-pink);">4.1</div></div></div>
+    <div class="gantt-row"><div class="gantt-label">4.2 兼容测试</div><div class="gantt-bar-container"><div class="gantt-bar" style="left:67%;width:5%;background:var(--accent-pink);">4.2</div></div></div>
+    <div class="gantt-row"><div class="gantt-label">4.3 性能优化</div><div class="gantt-bar-container"><div class="gantt-bar" style="left:67%;width:5%;background:var(--accent-pink);">4.3</div></div></div>
+    <div class="gantt-row"><div class="gantt-label">4.4 部署</div><div class="gantt-bar-container"><div class="gantt-bar" style="left:72%;width:5%;background:var(--accent-pink);">4.4</div></div></div>
+
+    <div class="gantt-phase" style="color:var(--accent);">■ 阶段五 · 设置面板</div>
+    <div class="gantt-row"><div class="gantt-label">5.1 面板UI</div><div class="gantt-bar-container"><div class="gantt-bar" style="left:77%;width:5%;background:var(--accent);">5.1</div></div></div>
+    <div class="gantt-row"><div class="gantt-label">5.2 主题切换</div><div class="gantt-bar-container"><div class="gantt-bar" style="left:82%;width:3%;background:var(--accent);">5.2</div></div></div>
+    <div class="gantt-row"><div class="gantt-label">5.3 排版控件</div><div class="gantt-bar-container"><div class="gantt-bar" style="left:82%;width:5%;background:var(--accent);">5.3</div></div></div>
+    <div class="gantt-row"><div class="gantt-label">5.4 方向控制</div><div class="gantt-bar-container"><div class="gantt-bar" style="left:87%;width:3%;background:var(--accent);">5.4</div></div></div>
+    <div class="gantt-row"><div class="gantt-label">5.5 持久化</div><div class="gantt-bar-container"><div class="gantt-bar" style="left:90%;width:3%;background:var(--accent);">5.5</div></div></div>
+    <div class="gantt-row"><div class="gantt-label">5.6 验证</div><div class="gantt-bar-container"><div class="gantt-bar" style="left:93%;width:5%;background:var(--accent);">5.6</div></div></div>
+  </div>
+</div>
+
+<!-- ==================== 关键决策 ==================== -->
+<h2>关键技术决策</h2>
+<div class="card">
+  <table class="decision-table">
+    <thead>
+      <tr><th>决策点</th><th>选择</th><th>理由</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>排版库</td><td>赫蹏 (heti)</td><td>内置古文/竖排/行间注/诗词版式，MIT，6.4k stars</td></tr>
+      <tr><td>拼音生成</td><td>pinyin-pro (Node.js)</td><td>已有依赖，API 简单，支持声调标注</td></tr>
+      <tr><td>前端框架</td><td>无（原生 JS）</td><td>项目规模小，无需框架复杂度</td></tr>
+      <tr><td>数据传递</td><td>构建 JSON + 运行时 fetch</td><td>分离构建与渲染，页面可离线使用</td></tr>
+      <tr><td>路由方案</td><td>URL hash (#poem-001)</td><td>无需服务端配置，GitHub Pages 直接支持</td></tr>
+      <tr><td>部署方案</td><td>GitHub Pages</td><td>免费，直接从 dist/ 目录发布</td></tr>
+      <tr><td>主题方案</td><td>CSS 变量 + data-theme</td><td>暗色默认，双主题切换，localStorage 持久化</td></tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ==================== 文件变更 ==================== -->
+<h2>文件变更清单</h2>
+<div style="display:grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; margin: 16px 0;">
+  <div class="card" style="border-left: 3px solid var(--accent-blue);">
+    <div class="card-title" style="color:var(--accent-blue);">新增</div>
+    <ul style="font-size:13px; padding-left:16px;">
+      <li><code>build.js</code> — 构建脚本</li>
+      <li><code>src/index.html</code> — 页面模板</li>
+      <li><code>dist/data.json</code> — 注音数据</li>
+      <li><code>dist/index.html</code> — 构建产物</li>
+      <li><code>docs/dev-plan.md</code></li>
+      <li><code>docs/dev-plan-visual.html</code></li>
+    </ul>
+  </div>
+  <div class="card" style="border-left: 3px solid var(--accent);">
+    <div class="card-title" style="color:var(--accent);">修改</div>
+    <ul style="font-size:13px; padding-left:16px;">
+      <li><code>package.json</code> — +scripts +dependencies</li>
+      <li><code>.gitignore</code> — +dist/</li>
+      <li><code>CLAUDE.md</code> — 更新开发命令</li>
+    </ul>
+  </div>
+  <div class="card" style="border-left: 3px solid var(--text-muted);">
+    <div class="card-title" style="color:var(--text-muted);">不变</div>
+    <ul style="font-size:13px; padding-left:16px;">
+      <li><code>docs/唐诗三百首.md</code></li>
+      <li><code>add-pinyin.js</code></li>
+      <li><code>docs/prd-web.md</code></li>
+    </ul>
+  </div>
+</div>
+
+</div>
+
+<script>
+function applyTheme(theme) {
+  document.documentElement.dataset.theme = theme;
+  document.getElementById('themeBtn').textContent = theme === 'dark' ? '🌙' : '☀️';
+  localStorage.setItem('theme', theme);
+}
+const saved = localStorage.getItem('theme');
+if (saved) applyTheme(saved);
+document.getElementById('themeBtn').addEventListener('click', () => {
+  applyTheme(document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark');
+});
+</script>
+</body>
+</html>

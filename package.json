@@ -1,0 +1,9 @@
+{
+  "scripts": {
+    "build": "node build.js",
+    "preview": "npx serve dist"
+  },
+  "dependencies": {
+    "pinyin-pro": "^3.28.1"
+  }
+}
