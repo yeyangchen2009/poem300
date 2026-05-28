@@ -372,3 +372,193 @@ const PUNCT_RE = /[，。、；：！？""''《》（）—…·「」『』【�
   docs/guide-adapt.md        适配其他经典的指南
   docs/guide-adapt-visual.html  适配流程可视化页面
 ```
+
+---
+
+## 2026-05-27 更新记录（六）— GitHub Pages 部署踩坑
+
+### 背景
+
+项目已推送到 https://github.com/yeyangchen2009/poem300 ，需要把 `dist/` 目录部署为 GitHub Pages 静态站。
+
+### 踩坑：gh-pages 分支操作导致本地文件消失
+
+**错误做法**：在本地仓库直接切分支、删文件，只留 dist 内容。
+
+```mermaid
+flowchart TD
+    A["master 分支<br/>所有源文件完整"] --> B["git checkout -b gh-pages"]
+    B --> C["gh-pages 分支<br/>（此时文件和 master 一样）"]
+    C --> D["git rm -rf .<br/>删除所有跟踪文件"]
+    D --> E["工作目录只剩 dist/<br/>其他文件全部消失"]
+    E --> F["用户看到文件丢失<br/>体验非常差"]
+
+    style A fill:#1a2a1a,stroke:#a5d6a7,color:#eee
+    style B fill:#2a2a3a,stroke:#888,color:#eee
+    style C fill:#2a2a3a,stroke:#888,color:#eee
+    style D fill:#3a1a1a,stroke:#ef9a9a,color:#eee
+    style E fill:#3a1a1a,stroke:#ef9a9a,color:#eee
+    style F fill:#3a1a1a,stroke:#ef9a9a,color:#eee
+```
+
+**问题根源**：
+
+1. `git checkout -b gh-pages` 创建新分支，工作目录仍指向同一文件夹
+2. `git rm -rf .` 从 git 跟踪中移除所有文件，工作目录上的文件也被删除
+3. 虽然文件在 master 分支上安全，但用户看到本地文件突然全没了，非常吓人
+
+**正确做法**：不应该在本地分支上做破坏性操作，而应通过远程 API 或独立工作目录完成部署。
+
+```mermaid
+flowchart TD
+    A["master 分支<br/>所有源文件完整"] --> B{"部署方式选择"}
+
+    B -->|"推荐"| C["gh api 远程创建<br/>gh-pages 分支"]
+    B -->|"备选"| D["git worktree<br/>独立工作目录"]
+    B -->|"备选"| E["GitHub Actions<br/>自动构建部署"]
+
+    C --> F["本地文件完全不动"]
+    D --> G["独立目录操作<br/>不影响主工作区"]
+    E --> H["CI 自动完成<br/>无需本地操作"]
+
+    style A fill:#1a2a1a,stroke:#a5d6a7,color:#eee
+    style B fill:#2a2a3a,stroke:#888,color:#eee
+    style C fill:#1a2a3a,stroke:#90caf9,color:#eee
+    style D fill:#1a2a3a,stroke:#90caf9,color:#eee
+    style E fill:#1a2a3a,stroke:#90caf9,color:#eee
+    style F fill:#1a2a1a,stroke:#a5d6a7,color:#eee
+    style G fill:#1a2a1a,stroke:#a5d6a7,color:#eee
+    style H fill:#1a2a1a,stroke:#a5d6a7,color:#eee
+```
+
+### 恢复操作
+
+```bash
+# 切回 master
+git checkout master
+
+# 用远程代码覆盖本地（恢复所有文件）
+git reset --hard origin/master
+
+# 删除 gh-pages 分支
+git branch -D gh-pages
+```
+
+### 教训
+
+- **永远不要在主工作目录上做破坏性 git 操作来部署 Pages**
+- 部署是远程操作，应尽量通过 API 或 CI 完成，不影响本地文件
+- 操作前要向用户解释清楚即将发生什么，尤其是看起来像「删文件」的操作
+
+---
+
+## 2026-05-27 更新记录（七）— GitHub Actions 部署 + 教程文档
+
+### 1. GitHub Actions 部署
+
+最终采用 GitHub Actions 方案部署，本地文件零影响。
+
+**创建的文件**：`.github/workflows/deploy.yml`
+
+流程：push → 触发 workflow → 云端 `npm ci && npm run build` → 上传 dist/ → 部署到 Pages。
+
+**踩坑与修复**：
+
+| 问题 | 原因 | 修复 |
+|------|------|------|
+| `npm ci` 报错找不到 lock 文件 | `package-lock.json` 在 `.gitignore` 中 | 从 `.gitignore` 移除 `package-lock.json` |
+| 首次构建失败 | 同上 | 提交 lock 文件后第二次构建成功 |
+
+**启用 Pages**：
+
+```bash
+gh api repos/yeyangchen2009/poem300/pages --method POST \
+  -f build_type=workflow -f source[branch]=master -f source[path]=/
+```
+
+站点地址：https://yeyangchen2009.github.io/poem300/
+
+### 2. 教程文档
+
+新增 `docs/github-actions-pages-tutorial.md`，包含：
+
+- GitHub Actions 原理（核心概念、workflow 文件结构、sequence 流程图）
+- gh CLI 操作 Pages 的常用命令
+- 两种方式的异同对比（Mermaid 图 + 对比表格）
+- 选择决策流程图
+- 本项目实际部署流程图
+- 踩坑记录流程图
+
+### 文件变更
+
+```
+新增:
+  .github/workflows/deploy.yml      GitHub Actions 部署工作流
+  docs/github-actions-pages-tutorial.md  Actions + Pages 教程
+
+修改:
+  .gitignore                         移除 package-lock.json
+  docs/devlog.md                     +本节更新记录
+```
+
+---
+
+## 2026-05-28 开发记录
+
+### （八）经典文库扩展方案整理
+
+基于 Kimi 对话内容，整理了从「唐诗三百首注音版」扩展到「经史子集全品类」的产品规划文档。
+
+新增 `docs/classic-library-expansion.md`，包含以下内容：
+
+#### 1. 现有架构评价
+
+对当前技术栈（pinyin-pro + heti + 原生 HTML/CSS/JS + GitHub Pages）的稳定性与适用性评估。
+
+#### 2. 四库全品类扩展的三种技术路线
+
+```mermaid
+flowchart TD
+    Now["poem300 现有架构"] --> Choice{"扩展方向"}
+    Choice -->|"A：继承现有架构"| A["升级构建管线 + 四库分类"]
+    Choice -->|"B：docsify/VitePress"| B["文档站体验"]
+    Choice -->|"C：Vue 3 + Vite"| C["现代框架"]
+```
+
+- **方案 A**：继承现有架构，古籍阅读质感最强，适合个人维护
+- **方案 B**：docsify/VitePress 文档站，上手最快，生态丰富
+- **方案 C**：Vue 3 + Vite 现代框架，适合团队开发、长期迭代
+
+#### 3. 多音字问题与解决方案
+
+古诗文注音最大的坑——多音字（如「说(yuè)乎」「乐(lè/yào)」）会标错。
+
+解决方案：建立 `corrections.json` 人工校正表，构建时先自动注音再覆盖。
+
+#### 4. 文档站方案补充对比
+
+对比了 docsify、VitePress、MkDocs、Docusaurus、Astro 五种方案的上手难度、竖排控制和构建速度。
+
+#### 5. 亲子共读场景产品设计
+
+核心用户画像：家长（30-45岁）+ 小朋友（6-12岁），需要拼音辅助识字、音频朗读、每日推荐等功能。
+
+#### 6. 平台选型
+
+分阶段策略：网页 MVP 验证 → 微信小程序裂变留存 → App 深度用户。
+
+各平台能力对比（网页 H5 / 微信小程序 / App）涵盖开发成本、音频能力、传播方式、支付等维度。
+
+#### 7. 从内容站到阅读产品的演进
+
+三阶段路线：内容站（¥0）→ 轻账户（¥0-50/月）→ 社区化（¥100-300/月）。
+
+### 文件变更
+
+```
+新增:
+  docs/classic-library-expansion.md    中华经典文库产品扩展方案
+
+修改:
+  docs/devlog.md                       +本节更新记录
+```
