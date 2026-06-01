@@ -1,0 +1,37 @@
+
+name: 'cbdb_dw'
+version: '1.0.0'
+
+profile: 'cbdb_dw'
+
+model-paths: ["models"]
+analysis-paths: ["analyses"]
+test-paths: ["tests"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+models:
+  cbdb_dw:
+    +persist_docs:
+      relation: true
+      columns: true
+    ods:
+      +materialized: table
+      +schema: ods
+    dim:
+      +materialized: table
+      +schema: dim
+    dwd:
+      +materialized: table
+      +schema: dwd
+    dws:
+      +materialized: table
+      +schema: dws
+    ads:
+      +materialized: table
+      +schema: ads

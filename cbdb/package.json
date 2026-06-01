@@ -1,0 +1,20 @@
+{
+  "name": "cbdb-tools",
+  "version": "1.0.0",
+  "description": "CBDB 数据仓库工具集 — 数据字典爬取、数仓建模、分析脚本",
+  "type": "module",
+  "scripts": {
+    "crawl": "node scripts/crawl-dict.js",
+    "tables": "node scripts/export-tables.js"
+  },
+  "keywords": [
+    "cbdb",
+    "chinese-history",
+    "data-warehouse"
+  ],
+  "license": "MIT",
+  "dependencies": {
+    "better-sqlite3": "^12.10.0",
+    "duckdb": "^1.4.4"
+  }
+}

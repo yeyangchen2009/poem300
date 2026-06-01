@@ -43,15 +43,17 @@ function parseMarkdown(text) {
 
     if (skipSection) continue;
 
-    // ### 诗标题
+    // ### 诗标题（兼容 "### 001 标题" 和 "### 标题" 两种格式）
     if (trimmed.startsWith('### ')) {
       const match = trimmed.match(/^###\s+(\d{3})\s+(.+)$/);
-      if (match) {
+      const rawTitle = match ? match[2] : trimmed.replace(/^###\s+/, '').trim();
+      if (rawTitle) {
         currentPoem = {
           id: poems.length + 1,
-          number: match[1],
-          title: match[2],
+          number: match ? match[1] : String(poems.length + 1).padStart(3, '0'),
+          title: rawTitle,
           author: '',
+          dynasty: '',
           volumeId: currentVolume ? currentVolume.id : null,
           lines: [],
         };
@@ -62,9 +64,19 @@ function parseMarkdown(text) {
 
     if (!currentPoem) continue;
 
-    // > 作者
+    // > 作者（兼容 "> 张九龄" 和 "> 唐-骆宾王" 两种格式）
     if (trimmed.startsWith('>')) {
-      currentPoem.author = trimmed.replace(/^>\s*/, '').trim();
+      const raw = trimmed.replace(/^>\s*/, '').trim();
+      const dashMatch = raw.match(/^(.+?)\s*[-—]\s*(.+)$/);
+      if (dashMatch) {
+        currentPoem.dynasty = dashMatch[1];
+        currentPoem.author = dashMatch[2];
+      } else {
+        currentPoem.author = raw;
+        // 无横线时，根据作者名判断朝代
+        const dynMap = { '汉乐府': '汉', '北朝民歌': '南北朝' };
+        currentPoem.dynasty = dynMap[raw] || '';
+      }
       continue;
     }
 
@@ -117,6 +129,14 @@ function build() {
   }
 
   const data = { volumes, poems };
+
+  // 合并诗人传记数据
+  const bioPath = path.join(__dirname, 'src', 'poet-bio.json');
+  if (fs.existsSync(bioPath)) {
+    data.poetBios = JSON.parse(fs.readFileSync(bioPath, 'utf8'));
+    const bioCount = Object.values(data.poetBios).filter(v => v !== null).length;
+    console.log(`已加载诗人传记：${bioCount} 位`);
+  }
 
   console.log('正在写入 data.json...');
   fs.writeFileSync(outputFile, JSON.stringify(data, null, 2), 'utf8');

@@ -399,6 +399,69 @@
   }
   .reset-btn:hover { border-color: var(--accent); color: var(--accent); }
 
+  /* ===== 诗人传记面板 ===== */
+  .poem-author[data-bio] {
+    cursor: pointer;
+    border-bottom: 1px dashed var(--accent);
+    transition: color 0.2s;
+  }
+  .poem-author[data-bio]:hover { color: var(--accent); }
+
+  .bio-overlay {
+    display: none; position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: var(--overlay); z-index: 200;
+  }
+  .bio-overlay.show { display: block; }
+
+  .bio-panel {
+    position: fixed; top: 0; right: 0; bottom: 0;
+    width: 340px; background: var(--bg-secondary);
+    border-left: 1px solid var(--border); z-index: 210;
+    transform: translateX(100%); transition: transform 0.3s ease;
+    display: flex; flex-direction: column;
+    box-shadow: -4px 0 12px var(--shadow);
+  }
+  .bio-panel.open { transform: translateX(0); }
+
+  .bio-header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 20px 20px 16px; border-bottom: 1px solid var(--border); flex-shrink: 0;
+  }
+  .bio-header h3 { font-size: 20px; font-weight: 700; color: var(--accent); }
+  .bio-header .bio-dynasty {
+    font-size: 13px; color: var(--text-muted); font-weight: 400;
+  }
+  .bio-close {
+    background: none; border: none; color: var(--text-secondary);
+    font-size: 20px; cursor: pointer; padding: 4px 8px; line-height: 1;
+  }
+  .bio-close:hover { color: var(--text-primary); }
+
+  .bio-body { flex: 1; overflow-y: auto; padding: 20px; }
+
+  .bio-section { margin-bottom: 18px; }
+  .bio-section-title {
+    font-size: 12px; font-weight: 600; color: var(--text-muted);
+    letter-spacing: 2px; margin-bottom: 6px; text-transform: uppercase;
+  }
+  .bio-section-content {
+    font-size: 14px; color: var(--text-primary); line-height: 1.8;
+  }
+  .bio-tag {
+    display: inline-block; padding: 2px 10px; margin: 2px 4px;
+    background: var(--bg-primary); border: 1px solid var(--border);
+    border-radius: 12px; font-size: 12px; color: var(--text-secondary);
+  }
+  .bio-years {
+    font-size: 24px; font-weight: 300; color: var(--accent);
+    letter-spacing: 1px;
+  }
+  .bio-years .bio-dash { margin: 0 4px; color: var(--text-muted); }
+  .bio-empty {
+    color: var(--text-muted); font-size: 13px; font-style: italic;
+  }
+
   /* ===== 移动端 ===== */
   .sidebar-overlay {
     display: none; position: fixed;
@@ -426,6 +489,7 @@
     }
     .poem-body { font-size: 18px; }
     .settings-panel { width: 100%; }
+    .bio-panel { width: 100%; }
   }
 </style>
 </head>
@@ -525,6 +589,16 @@
     <hr class="settings-divider">
     <button class="reset-btn" id="resetBtn">恢复默认设置</button>
   </div>
+</div>
+
+<!-- 诗人传记面板 -->
+<div class="bio-overlay" id="bioOverlay"></div>
+<div class="bio-panel" id="bioPanel">
+  <div class="bio-header">
+    <h3 id="bioName"></h3>
+    <button class="bio-close" id="bioClose">✕</button>
+  </div>
+  <div class="bio-body" id="bioBody"></div>
 </div>
 
 <script src="//unpkg.com/heti@0.9.4/umd/heti-addon.min.js"></script>
@@ -672,6 +746,85 @@
     applySettings();
   });
 
+  // ===== 诗人传记面板 =====
+  const bioPanel = document.getElementById('bioPanel');
+  const bioOverlay = document.getElementById('bioOverlay');
+  const bioName = document.getElementById('bioName');
+  const bioBody = document.getElementById('bioBody');
+
+  function openBio(name, bio) {
+    bioName.innerHTML = `${name} <span class="bio-dynasty">${bio.dynasty || ''}</span>`;
+
+    let html = '';
+
+    // 生卒年
+    if (bio.birthYear || bio.deathYear) {
+      html += '<div class="bio-section">';
+      html += '<div class="bio-section-title">生卒年</div>';
+      html += '<div class="bio-years">';
+      html += bio.birthYear || '?';
+      html += '<span class="bio-dash">—</span>';
+      html += bio.deathYear || '?';
+      html += '</div></div>';
+    }
+
+    // 字号
+    if (bio.altNames && bio.altNames.length) {
+      html += '<div class="bio-section">';
+      html += '<div class="bio-section-title">字号别号</div>';
+      html += '<div class="bio-section-content">';
+      html += bio.altNames.map(n => `<span class="bio-tag">${n}</span>`).join('');
+      html += '</div></div>';
+    }
+
+    // 籍贯
+    if (bio.hometown) {
+      html += '<div class="bio-section">';
+      html += '<div class="bio-section-title">籍贯</div>';
+      html += `<div class="bio-section-content">${bio.hometown}</div>`;
+      html += '</div>';
+    }
+
+    // 入仕
+    if (bio.entry && bio.entry.length) {
+      html += '<div class="bio-section">';
+      html += '<div class="bio-section-title">入仕途径</div>';
+      html += '<div class="bio-section-content">';
+      html += bio.entry.map(e => `<span class="bio-tag">${e}</span>`).join('');
+      html += '</div></div>';
+    }
+
+    // 官职
+    if (bio.offices && bio.offices.length) {
+      html += '<div class="bio-section">';
+      html += '<div class="bio-section-title">主要官职</div>';
+      html += '<div class="bio-section-content">';
+      html += bio.offices.map(o => `<span class="bio-tag">${o}</span>`).join('');
+      html += '</div></div>';
+    }
+
+    // 身份
+    if (bio.status && bio.status.length) {
+      html += '<div class="bio-section">';
+      html += '<div class="bio-section-title">社会身份</div>';
+      html += '<div class="bio-section-content">';
+      html += bio.status.map(s => `<span class="bio-tag">${s}</span>`).join('');
+      html += '</div></div>';
+    }
+
+    bioBody.innerHTML = html;
+    bioPanel.classList.add('open');
+    bioOverlay.classList.add('show');
+  }
+
+  function closeBio() {
+    bioPanel.classList.remove('open');
+    bioOverlay.classList.remove('show');
+  }
+
+  document.getElementById('bioClose').addEventListener('click', closeBio);
+  bioOverlay.addEventListener('click', closeBio);
+
   // ===== 数据加载 =====
   async function loadData() {
     const res = await fetch('data.json');
@@ -748,7 +901,7 @@
       <div class="poem-card" data-dir="${settings.direction}" data-pos="${settings.rubyPosition}">
         <div class="poem-body heti">
           <h2>${poem.title}</h2>
-          <span class="poem-author">〔唐〕${poem.author}</span>
+          <span class="poem-author" data-bio="${poem.author}">〔${poem.dynasty || '唐'}〕${poem.author}</span>
           <p class="poem-lines">${linesHtml}</p>
         </div>
       </div>
@@ -775,6 +928,17 @@
     location.hash = poem.number;
 
     if (typeof Heti !== 'undefined') new Heti('.heti');
+
+    // 作者点击 → 传记面板
+    const authorEl = view.querySelector('.poem-author[data-bio]');
+    if (authorEl) {
+      const bio = (data.poetBios || {})[poem.author];
+      if (bio) {
+        authorEl.addEventListener('click', () => openBio(poem.author, bio));
+      } else {
+        authorEl.removeAttribute('data-bio');
+      }
+    }
   }
 
   // ===== 导航 =====
@@ -794,6 +958,7 @@
       if (currentIndex < data.poems.length - 1) { currentIndex++; renderPoem(); }
     } else if (e.key === 'Escape') {
       closeSettings();
+      closeBio();
     }
   });
   window.addEventListener('hashchange', navigateFromHash);
@@ -817,7 +982,7 @@
       searchResults.innerHTML = matches.map(p => `
         <div class="sr-item" data-idx="${p.id - 1}">
           <div class="sr-title">${p.number} ${p.title}</div>
-          <div class="sr-meta">[唐]${p.author}</div>
+          <div class="sr-meta">[${p.dynasty || '唐'}]${p.author}</div>
         </div>
       `).join('');
     }

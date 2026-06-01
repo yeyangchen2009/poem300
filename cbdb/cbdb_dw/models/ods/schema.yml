@@ -1,0 +1,2294 @@
+version: 2
+
+models:
+
+  - name: ods_cbdb_addr_belongs_data
+    description: 存储地址归属关系的时序数据，记录特定地址在时间维度上所属的上级行政区划及其来源信息
+    meta:
+      source_table: ADDR_BELONGS_DATA
+      row_count: 2
+    columns:
+      - name: c_addr_id
+        description: 当前地址的唯一标识符，关联地址编码表(ADDR_CODES/ADDRESSES)的主键
+      - name: c_belongs_to
+        description: 上级归属地址的唯一标识符，递归关联本表或地址编码表(ADDR_CODES/ADDRESSES)的c_addr_id
+      - name: c_firstyear
+        description: 归属关系生效起始年份（公元纪年）
+      - name: c_lastyear
+        description: 归属关系生效结束年份（公元纪年）
+      - name: c_source
+        description: 资料来源标识符，关联文本资料表(TEXT_CODES)的c_textid字段
+      - name: c_pages
+        description: 资料来源的具体页码或位置说明
+      - name: c_notes
+        description: 关于该归属关系的补充说明或考证注释
+      - name: c_created_by
+        description: 记录创建人
+      - name: c_created_date
+        description: 记录创建时间
+      - name: c_modified_by
+        description: 记录修改人
+      - name: c_modified_date
+        description: 记录修改时间
+      - name: ETL_LOAD_DATETIME
+        description: "ETL加载时间"
+      - name: ETL_LOAD_DATE
+        description: "ETL加载数据日期"
+
+  - name: ods_cbdb_addr_codes
+    description: 存储地址编码信息，包括地址的中英文名称、存在的时间范围、地理坐标及行政区类型等。
+    meta:
+      source_table: ADDR_CODES
+      row_count: 589
+    columns:
+      - name: c_addr_id
+        description: 地址的唯一标识符
+      - name: c_name
+        description: 地址的英文名称
+      - name: c_name_chn
+        description: 地址的中文名称
+      - name: c_firstyear
+        description: 地址存在的起始年份
+      - name: c_lastyear
+        description: 地址存在的结束年份
+      - name: c_admin_type
+        description: 行政区类型（如省、州、县等）
+      - name: c_admin_cat_code
+        description: 行政区类别编码
+      - name: x_coord
+        description: 地理经度坐标
+      - name: y_coord
+        description: 地理纬度坐标
+      - name: CHGIS_PT_ID
+        description: 中国历史地理信息系统（CHGIS）中的点标识符
+      - name: c_notes
+        description: 备注或附加信息
+      - name: c_alt_names
+        description: 地址的备用名称或别名
+      - name: ETL_LOAD_DATETIME
+        description: "ETL加载时间"
+      - name: ETL_LOAD_DATE
+        description: "ETL加载数据日期"
+
+  - name: ods_cbdb_admin_cat_codes
+    description: 行政区类别代码表，定义行政区划的类型编码
+    meta:
+      source_table: ADMIN_CAT_CODES
+      row_count: 1175
+    columns:
+      - name: c_admin_cat_code
+        description: 行政区类别编码
+      - name: c_admin_cat_py
+        description: 行政区类别拼音名
+      - name: c_admin_cat_hz
+        description: 行政区类别中文名
+      - name: c_admin_cat_trans
+        description: 行政区类别英文名
+      - name: c_notes
+        description: 备注说明
+      - name: ETL_LOAD_DATETIME
+        description: "ETL加载时间"
+      - name: ETL_LOAD_DATE
+        description: "ETL加载数据日期"
+
+  - name: ods_cbdb_admin_cat_code_type_rel
+    description: 行政区类别与类型的关联关系表
+    meta:
+      source_table: ADMIN_CAT_CODE_TYPE_REL
+      row_count: 1180
+    columns:
+      - name: c_admin_cat_code
+        description: 行政区类别编码
+      - name: c_admin_cat_type_code
+        description: 行政区类型编码
+      - name: ETL_LOAD_DATETIME
+        description: "ETL加载时间"
+      - name: ETL_LOAD_DATE
+        description: "ETL加载数据日期"
+
+  - name: ods_cbdb_admin_cat_types
+    description: 行政区类型代码表，定义行政区划类型分类
+    meta:
+      source_table: ADMIN_CAT_TYPES
+      row_count: 1182
+    columns:
+      - name: c_admin_cat_type_code
+        description: 行政区类型编码
+      - name: c_admin_cat_type_hz
+        description: 行政区类型中文名
+      - name: c_admin_cat_type_trans
+        description: 行政区类型英文名
+      - name: c_notes
+        description: 备注说明
+      - name: ETL_LOAD_DATETIME
+        description: "ETL加载时间"
+      - name: ETL_LOAD_DATE
+        description: "ETL加载数据日期"
+
+  - name: ods_cbdb_altname_codes
+    description: 存储别名类型代码及其描述的表，包括中文和英文版本
+    meta:
+      source_table: ALTNAME_CODES
+      row_count: 1184
+    columns:
+      - name: c_name_type_code
+        description: 别名类型的唯一标识代码
+      - name: c_name_type_desc
+        description: 别名类型的英文描述
+      - name: c_name_type_desc_chn
+        description: 别名类型的中文描述
+      - name: ETL_LOAD_DATETIME
+        description: "ETL加载时间"
+      - name: ETL_LOAD_DATE
+        description: "ETL加载数据日期"
+
+  - name: ods_cbdb_altname_data
+    description: 存储人物别名信息数据表，记录历史人物的各种别名、字号、谥号等替代名称信息
+    meta:
+      source_table: ALTNAME_DATA
+      row_count: 1186
+    columns:
+      - name: c_personid
+        description: 关联人物主键，对应BIOG_MAIN表的c_personid
+      - name: c_alt_name
+        description: 人物非中文别名/字号（如罗马化名称）
+      - name: c_alt_name_chn
+        description: 人物中文别名/字号（汉字形式）
+      - name: c_alt_name_type_code
+        description: 别名类型代码，关联ALTNAME_CODES表的c_name_type_code
+      - name: c_sequence
+        description: 别名显示顺序编号
+      - name: c_source
+        description: 资料来源标识，关联TEXT_CODES表的c_textid
+      - name: c_pages
+        description: 资料来源页码或卷号
+      - name: c_notes
+        description: 别名备注说明
+      - name: c_created_by
+        description: 记录创建者
+      - name: c_modified_by
+        description: 记录最后修改者
+      - name: c_created_date
+        description: 记录创建时间
+      - name: c_modified_date
+        description: 记录最后修改时间
+      - name: ETL_LOAD_DATETIME
+        description: "ETL加载时间"
+      - name: ETL_LOAD_DATE
+        description: "ETL加载数据日期"
+
+  - name: ods_cbdb_appointment_codes
+    description: 任命方式代码表，定义官员任命的具体方式
+    meta:
+      source_table: APPOINTMENT_CODES
+      row_count: 6272
+    columns:
+      - name: c_appt_code
+        description: 任命方式编码
+      - name: c_appt_desc_chn
+        description: 任命方式中文描述
+      - name: c_appt_desc
+        description: 任命方式英文描述
+      - name: c_appt_desc_chn_alt
+        description: 任命方式中文别名
+      - name: c_appt_desc_alt
+        description: 任命方式英文别名
+      - name: c_notes
+        description: 备注说明
+      - name: ETL_LOAD_DATETIME
+        description: "ETL加载时间"
+      - name: ETL_LOAD_DATE
+        description: "ETL加载数据日期"
+
+  - name: ods_cbdb_appointment_code_type_rel
+    description: 任命方式与类型的关联关系表
+    meta:
+      source_table: APPOINTMENT_CODE_TYPE_REL
+      row_count: 6276
+    columns:
+      - name: c_appt_type_code
+        description: 任命类型编码
+      - name: c_appt_code
+        description: 任命方式编码
+      - name: ETL_LOAD_DATETIME
+        description: "ETL加载时间"
+      - name: ETL_LOAD_DATE
+        description: "ETL加载数据日期"
+
+  - name: ods_cbdb_appointment_types
+    description: 任命类型代码表，定义任命方式的分类
+    meta:
+      source_table: APPOINTMENT_TYPES
+      row_count: 6280
+    columns:
+      - name: c_appt_type_code
+        description: 任命类型编码
+      - name: c_appt_type_desc
+        description: 任命类型英文描述
+      - name: c_appt_type_desc_chn
+        description: 任命类型中文描述
+      - name: ETL_LOAD_DATETIME
+        description: "ETL加载时间"
+      - name: ETL_LOAD_DATE
+        description: "ETL加载数据日期"
+
+  - name: ods_cbdb_assoc_codes
+    description: 存储人物关联关系的类型代码及其描述信息，用于定义不同人物间的关联类型和角色关系。
+    meta:
+      source_table: ASSOC_CODES
+      row_count: 6282
+    columns:
+      - name: c_assoc_code
+        description: 关联类型的唯一标识符代码，用于唯一标识一种关联关系类型。
+      - name: c_assoc_pair
+        description: 关联关系中的第一个角色类型代码，可能与其他代码表关联。
+      - name: c_assoc_pair2
+        description: 关联关系中的第二个角色类型代码，可能与其他代码表关联。
+      - name: c_assoc_desc
+        description: 关联关系的英文描述，说明该代码对应的具体关联类型。
+      - name: c_assoc_desc_chn
+        description: 关联关系的中文描述，说明该代码对应的具体关联类型。
+      - name: c_assoc_role_type
+        description: "关联角色类型的分类代码，例如主动或被动角色（如 'A' 表示主动）。"
+      - name: c_sortorder
+        description: 排序序号，用于控制该关联类型在列表中的显示顺序。
+      - name: c_example
+        description: 关联类型的示例说明，提供具体应用场景的示例文本。
+      - name: ETL_LOAD_DATETIME
+        description: "ETL加载时间"
+      - name: ETL_LOAD_DATE
+        description: "ETL加载数据日期"
+
+  - name: ods_cbdb_assoc_code_type_rel
+    description: 存储关联关系代码与关联类型之间的映射关系，用于定义不同类型的社交关联对应的分类标识
+    meta:
+      source_table: ASSOC_CODE_TYPE_REL
+      row_count: 6295
+    columns:
+      - name: c_assoc_code
+        description: 关联关系代码，指向ASSOC_CODES表的c_assoc_code字段，标识具体的社交关系类型
+      - name: c_assoc_type_code
+        description: 关联类型标识符，指向ASSOC_TYPES表，定义社交关系的分类层级
+      - name: ETL_LOAD_DATETIME
+        description: "ETL加载时间"
+      - name: ETL_LOAD_DATE
+        description: "ETL加载数据日期"
+
+  - name: ods_cbdb_assoc_data
+    description: 存储人物社会关系数据的核心表，记录人物之间的亲属关系、社交关联及关联事件的具体信息
+    meta:
+      source_table: ASSOC_DATA
+      row_count: 6301
+    columns:
+      - name: c_assoc_code
+        description: 关联类型代码，关联ASSOC_CODES表定义关系类型
+      - name: c_personid
+        description: 主人物ID，关联BIOG_MAIN表
+      - name: c_kin_code
+        description: 亲属关系代码，关联KINSHIP_CODES表
+      - name: c_kin_id
+        description: 亲属关系实例ID，用于区分同一类型的不同亲属关系
+      - name: c_assoc_id
+        description: 关联实例唯一标识符
+      - name: c_assoc_kin_code
+        description: 关联对象的亲属关系代码，关联KINSHIP_CODES表
+      - name: c_assoc_kin_id
+        description: 关联对象的亲属关系实例ID
+      - name: c_tertiary_personid
+        description: 第三方参与人物ID，关联BIOG_MAIN表
+      - name: c_tertiary_type_notes
+        description: 第三方参与类型的文字说明
+      - name: c_assoc_count
+        description: 关联事件发生次数
+      - name: c_sequence
+        description: 同一关联事件的顺序编号
+      - name: c_assoc_first_year
+        description: 社交关系起始年份
+      - name: c_assoc_last_year
+        description: 社交关系结束年份
+      - name: c_source
+        description: 资料来源代码，关联TEXT_CODES表
+      - name: c_pages
+        description: 资料来源页码或卷册信息
+      - name: c_notes
+        description: 关联事件备注说明
+      - name: c_assoc_fy_nh_code
+        description: 起始年年号编码
+      - name: c_assoc_fy_nh_year
+        description: 起始年年号年份
+      - name: c_assoc_fy_range
+        description: 起始年年份范围标识
+      - name: c_assoc_ly_nh_code
+        description: 结束年年号编码
+      - name: c_assoc_ly_nh_year
+        description: 结束年年号年份
+      - name: c_assoc_ly_range
+        description: 结束年年份范围标识
+      - name: c_addr_id
+        description: 关联发生地点ID，关联ADDRESSES表
+      - name: c_litgenre_code
+        description: 文学体裁代码，关联LITERARYGENRE_CODES表
+      - name: c_occasion_code
+        description: 社交场合代码，关联OCCASION_CODES表
+      - name: c_topic_code
+        description: 学术主题代码，关联SCHOLARLYTOPIC_CODES表
+      - name: c_inst_code
+        description: 机构类型代码，关联SOCIAL_INSTITUTION_TYPES表
+      - name: c_inst_name_code
+        description: 机构名称代码，关联SOCIAL_INSTITUTION_NAME_CODES表
+      - name: c_text_title
+        description: 关联文献标题（强制存储原始汉字）
+      - name: c_assoc_claimer_id
+        description: 关联主张者ID，关联BIOG_MAIN表
+      - name: c_assoc_fy_intercalary
+        description: 起始年闰月标识
+      - name: c_assoc_fy_month
+        description: 起始年月份
+      - name: c_assoc_fy_day
+        description: 起始年日期
+      - name: c_assoc_fy_day_gz
+        description: 起始年日干支编码
+      - name: c_assoc_ly_intercalary
+        description: 结束年闰月标识
+      - name: c_assoc_ly_month
+        description: 结束年月份
+      - name: c_assoc_ly_day
+        description: 结束年日期
+      - name: c_assoc_ly_day_gz
+        description: 结束年日干支编码
+      - name: c_created_by
+        description: 记录创建者
+      - name: c_modified_by
+        description: 最后修改者
+      - name: c_created_date
+        description: 记录创建日期
+      - name: c_modified_date
+        description: 最后修改日期
+      - name: ETL_LOAD_DATETIME
+        description: "ETL加载时间"
+      - name: ETL_LOAD_DATE
+        description: "ETL加载数据日期"
+
+  - name: ods_cbdb_assoc_types
+    description: 存储关联类型的主分类表，定义社会关系类型的层级结构和展示顺序
+    meta:
+      source_table: ASSOC_TYPES
+      row_count: 15204
+    columns:
+      - name: c_assoc_type_code
+        description: 关联类型唯一标识符，用于区分不同类型的社会关系分类
+      - name: c_assoc_type_desc
+        description: 关联类型的英文描述，说明该分类的具体含义
+      - name: c_assoc_type_desc_chn
+        description: 关联类型的中文描述，说明该分类的具体含义
+      - name: c_assoc_type_parent_id
+        description: 父级关联类型ID，用于构建多层级分类结构
+      - name: c_assoc_type_level
+        description: 分类层级编号，表示该类型在树形结构中的位置（如1级为根分类）
+      - name: c_assoc_type_sortorder
+        description: 分类排序序号，控制同层级分类的显示顺序
+      - name: c_assoc_type_short_desc
+        description: 关联类型简短描述，用于界面显示等需要简洁说明的场景
+      - name: ETL_LOAD_DATETIME
+        description: "ETL加载时间"
+      - name: ETL_LOAD_DATE
+        description: "ETL加载数据日期"
+
+  - name: ods_cbdb_assume_office_codes
+    description: 存储官员任职方式类型的编码表，用于标识官员获得职位的方式（如任命、选举、继承等）
+    meta:
+      source_table: ASSUME_OFFICE_CODES
+      row_count: 15207
+    columns:
+      - name: c_assume_office_code
+        description: 担任职务方式的唯一标识代码
+      - name: c_assume_office_desc_chn
+        description: "任职方式的中文描述（如'任命'、'世袭'等）"
+      - name: c_assume_office_desc
+        description: "任职方式的英文描述（如'Appointment'、'Hereditary'等）"
+      - name: ETL_LOAD_DATETIME
+        description: "ETL加载时间"
+      - name: ETL_LOAD_DATE
+        description: "ETL加载数据日期"
+
+  - name: ods_cbdb_biog_addr_codes
+    description: 存储人物地址类型代码及其描述信息，用于定义不同地址类型的分类标准和索引排序规则
+    meta:
+      source_table: BIOG_ADDR_CODES
+      row_count: 15209
+    columns:
+      - name: c_addr_type
+        description: 地址类型唯一编码（主标识符）
+      - name: c_addr_desc
+        description: 地址类型英文描述（如籍贯/居住地/墓葬地等）
+      - name: c_addr_desc_chn
+        description: 地址类型中文描述（如：籍贯/居住地/墓葬地等）
+      - name: c_addr_note
+        description: 地址类型补充说明
+      - name: c_index_addr_rank
+        description: 地址类型在索引中的排序权重值
+      - name: c_index_addr_default_rank
+        description: 地址类型默认索引排序等级
+      - name: ETL_LOAD_DATETIME
+        description: "ETL加载时间"
+      - name: ETL_LOAD_DATE
+        description: "ETL加载数据日期"
+
+  - name: ods_cbdb_biog_addr_data
+    description: 存储人物生平地址关联数据，记录人物在不同时间段内的地址信息及其类型、来源和日期细节
+    meta:
+      source_table: BIOG_ADDR_DATA
+      row_count: 15211
+    columns:
+      - name: c_personid
+        description: 关联BIOG_MAIN表的人物唯一标识符
+      - name: c_addr_id
+        description: 关联ADDRESSES表的地址唯一标识符
+      - name: c_addr_type
+        description: 地址类型代码，关联BIOG_ADDR_CODES表的c_addr_type字段
+      - name: c_sequence
+        description: 地址信息在人物生平中的排序序列号
+      - name: c_firstyear
+        description: 地址关联起始年份（公历年）
+      - name: c_lastyear
+        description: 地址关联结束年份（公历年）
+      - name: c_source
+        description: 资料来源代码，关联TEXT_CODES表的c_textid字段
+      - name: c_pages
+        description: 资料来源页码或卷册信息
+      - name: c_notes
+        description: 地址关联备注信息
+      - name: c_fy_nh_code
+        description: 起始年份对应的年号代码，关联NIAN_HAO表的c_nianhao_id
+      - name: c_ly_nh_code
+        description: 结束年份对应的年号代码，关联NIAN_HAO表的c_nianhao_id
+      - name: c_fy_nh_year
+        description: 起始年份对应的年号纪年
+      - name: c_ly_nh_year
+        description: 结束年份对应的年号纪年
+      - name: c_fy_range
+        description: 起始年份范围代码，关联YEAR_RANGE_CODES表的c_range_code
+      - name: c_ly_range
+        description: 结束年份范围代码，关联YEAR_RANGE_CODES表的c_range_code
+      - name: c_natal
+        description: 标识是否为籍贯地址（1=是，0=否）
+      - name: c_fy_intercalary
+        description: 起始年份是否包含闰月（1=是，0=否）
+      - name: c_ly_intercalary
+        description: 结束年份是否包含闰月（1=是，0=否）
+      - name: c_fy_month
+        description: 起始月份（农历）
+      - name: c_ly_month
+        description: 结束月份（农历）
+      - name: c_fy_day
+        description: 起始日期（农历）
+      - name: c_ly_day
+        description: 结束日期（农历）
+      - name: c_fy_day_gz
+        description: 起始日期的干支代码，关联GANZHI_CODES表的c_ganzhi_code
+      - name: c_ly_day_gz
+        description: 结束日期的干支代码，关联GANZHI_CODES表的c_ganzhi_code
+      - name: c_created_by
+        description: 记录创建者
+      - name: c_modified_by
+        description: 记录最后修改者
+      - name: c_delete
+        description: 软删除标记（1=已删除，0=未删除）
+      - name: c_created_date
+        description: 记录创建日期
+      - name: c_modified_date
+        description: 记录最后修改日期
+      - name: ETL_LOAD_DATETIME
+        description: "ETL加载时间"
+      - name: ETL_LOAD_DATE
+        description: "ETL加载数据日期"
+
+  - name: ods_cbdb_biog_inst_codes
+    description: 存储人物与机构关联角色代码的字典表，定义不同机构角色类型及其描述信息
+    meta:
+      source_table: BIOG_INST_CODES
+      row_count: 28058
+    columns:
+      - name: c_bi_role_code
+        description: 机构角色代码，唯一标识人物在机构中担任的角色类型
+      - name: c_bi_role_desc
+        description: 角色类型英文描述，说明机构角色的具体含义
+      - name: c_bi_role_chn
+        description: 角色类型中文描述，说明机构角色的具体含义
+      - name: c_notes
+        description: 附加注释，记录特殊说明或数据来源信息
+      - name: ETL_LOAD_DATETIME
+        description: "ETL加载时间"
+      - name: ETL_LOAD_DATE
+        description: "ETL加载数据日期"
+
+  - name: ods_cbdb_biog_inst_data
+    description: 记录人物与社会机构关系的任职经历数据表
+    meta:
+      source_table: BIOG_INST_DATA
+      row_count: 28060
+    columns:
+      - name: c_personid
+        description: 人物唯一标识符，关联 BIOG_MAIN 表
+      - name: c_inst_name_code
+        description: 机构名称代码，关联 SOCIAL_INSTITUTION_NAME_CODES 表
+      - name: c_inst_code
+        description: 机构类型代码，关联 SOCIAL_INSTITUTION_CODES 表
+      - name: c_bi_role_code
+        description: 人物在机构中的角色代码，关联 BIOG_INST_CODES 表
+      - name: c_bi_begin_year
+        description: 任职开始年份（绝对年份）
+      - name: c_bi_by_nh_code
+        description: 任职开始年号代码，关联 NIAN_HAO 表
+      - name: c_bi_by_nh_year
+        description: 任职开始年号的年份
+      - name: c_bi_by_range
+        description: 任职开始年份范围代码，关联 YEAR_RANGE_CODES 表
+      - name: c_bi_end_year
+        description: 任职结束年份（绝对年份）
+      - name: c_bi_ey_nh_code
+        description: 任职结束年号代码，关联 NIAN_HAO 表
+      - name: c_bi_ey_nh_year
+        description: 任职结束年号的年份
+      - name: c_bi_ey_range
+        description: 任职结束年份范围代码，关联 YEAR_RANGE_CODES 表
+      - name: c_source
+        description: 资料来源标识符，关联 TEXT_CODES 表
+      - name: c_pages
+        description: 资料来源页码或卷号
+      - name: c_notes
+        description: 备注或补充说明
+      - name: c_created_by
+        description: 记录创建者
+      - name: c_modified_by
+        description: 记录最后修改者
+      - name: c_created_date
+        description: 记录创建日期
+      - name: c_modified_date
+        description: 记录最后修改日期
+      - name: ETL_LOAD_DATETIME
+        description: "ETL加载时间"
+      - name: ETL_LOAD_DATE
+        description: "ETL加载数据日期"
+
+  - name: ods_cbdb_biog_main
+    description: 存储人物核心传记信息的主表，包含人物的基本属性、生卒年份、籍贯信息、民族归属、行政编码及系统元数据等核心字段
+    meta:
+      source_table: BIOG_MAIN
+      row_count: 28079
+    columns:
+      - name: c_personid
+        description: 人物唯一标识符，系统主键
+      - name: c_name
+        description: 人物姓名（拉丁化形式）
+      - name: c_name_chn
+        description: 人物中文姓名
+      - name: c_index_year
+        description: 索引年份（用于人物检索的时间基准）
+      - name: c_index_year_type_code
+        description: 索引年份类型编码（关联INDEXYEAR_TYPE_CODES表）
+      - name: c_index_year_source_id
+        description: 索引年份来源标识（关联文本来源表）
+      - name: c_female
+        description: 性别标识（0=男性，1=女性）
+      - name: c_index_addr_id
+        description: 标准籍贯地址ID（关联ADDRESSES表）
+      - name: c_index_addr_type_code
+        description: 籍贯地址类型编码（关联BIOG_ADDR_CODES表）
+      - name: c_ethnicity_code
+        description: 民族/族群编码（关联ETHNICITY_TRIBE_CODES表）
+      - name: c_household_status_code
+        description: 户籍状态编码（关联HOUSEHOLD_STATUS_CODES表）
+      - name: c_tribe
+        description: 部族/氏族名称（自由文本）
+      - name: c_birthyear
+        description: 出生年份（公历年份）
+      - name: c_by_nh_code
+        description: 出生年号编码（关联NIAN_HAO表）
+      - name: c_by_nh_year
+        description: 出生年份在年号纪年中的具体年份
+      - name: c_by_range
+        description: 出生年份范围编码（关联YEAR_RANGE_CODES表）
+      - name: c_deathyear
+        description: 死亡年份（公历年份）
+      - name: c_dy_nh_code
+        description: 死亡年号编码（关联NIAN_HAO表）
+      - name: c_dy_nh_year
+        description: 死亡年份在年号纪年中的具体年份
+      - name: c_dy_range
+        description: 死亡年份范围编码（关联YEAR_RANGE_CODES表）
+      - name: c_death_age
+        description: 享寿年龄（整数）
+      - name: c_death_age_range
+        description: 享寿年龄范围编码（关联YEAR_RANGE_CODES表）
+      - name: c_fl_earliest_year
+        description: 人物活跃期最早年份
+      - name: c_fl_ey_nh_code
+        description: 活跃期最早年份对应的年号编码
+      - name: c_fl_ey_nh_year
+        description: 活跃期最早年份在年号纪年中的具体年份
+      - name: c_fl_ey_notes
+        description: 活跃期最早年份备注
+      - name: c_fl_latest_year
+        description: 人物活跃期最晚年份
+      - name: c_fl_ly_nh_code
+        description: 活跃期最晚年份对应的年号编码
+      - name: c_fl_ly_nh_year
+        description: 活跃期最晚年份在年号纪年中的具体年份
+      - name: c_fl_ly_notes
+        description: 活跃期最晚年份备注
+      - name: c_surname
+        description: 姓氏（拉丁化形式）
+      - name: c_surname_chn
+        description: 姓氏（中文）
+      - name: c_mingzi
+        description: 名字（拉丁化形式）
+      - name: c_mingzi_chn
+        description: 名字（中文）
+      - name: c_dy
+        description: 主要活动朝代编码（关联DYNASTIES表）
+      - name: c_choronym_code
+        description: 郡望编码（关联CHORONYM_CODES表）
+      - name: c_notes
+        description: 人物备注信息
+      - name: c_by_intercalary
+        description: 出生日期是否包含闰月标记
+      - name: c_dy_intercalary
+        description: 死亡日期是否包含闰月标记
+      - name: c_by_month
+        description: 出生月份（农历）
+      - name: c_dy_month
+        description: 死亡月份（农历）
+      - name: c_by_day
+        description: 出生日期（农历日）
+      - name: c_dy_day
+        description: 死亡日期（农历日）
+      - name: c_by_day_gz
+        description: 出生日干支编码（关联GANZHI_CODES表）
+      - name: c_dy_day_gz
+        description: 死亡日干支编码（关联GANZHI_CODES表）
+      - name: c_surname_proper
+        description: 规范化的姓氏（拉丁化形式）
+      - name: c_mingzi_proper
+        description: 规范化的名字（拉丁化形式）
+      - name: c_name_proper
+        description: 规范化的全名（拉丁化形式）
+      - name: c_surname_rm
+        description: 姓氏罗马化形式
+      - name: c_mingzi_rm
+        description: 名字罗马化形式
+      - name: c_name_rm
+        description: 全名罗马化形式
+      - name: c_created_by
+        description: 记录创建者
+      - name: c_modified_by
+        description: 记录最后修改者
+      - name: c_created_date
+        description: 记录创建日期
+      - name: c_modified_date
+        description: 记录最后修改日期
+      - name: ETL_LOAD_DATETIME
+        description: "ETL加载时间"
+      - name: ETL_LOAD_DATE
+        description: "ETL加载数据日期"
+
+  - name: ods_cbdb_biog_source_data
+    description: 记录人物传记资料的主要来源信息，包括引用文本、页码和来源类型标记
+    meta:
+      source_table: BIOG_SOURCE_DATA
+      row_count: 56237
+    columns:
+      - name: c_personid
+        description: 人物唯一标识符，关联BIOG_MAIN表的c_personid
+      - name: c_textid
+        description: 文献唯一标识符，关联TEXT_CODES表的c_textid
+      - name: c_pages
+        description: 文献中具体引用页码或章节信息
+      - name: c_notes
+        description: 关于资料来源的补充说明或注释
+      - name: c_main_source
+        description: 标记是否为主要传记来源（1=是，0=否）
+      - name: c_self_bio
+        description: 标记是否为自传类文本（1=是，0=否）
+      - name: c_created_by
+        description: 记录创建人
+      - name: c_created_date
+        description: 记录创建时间
+      - name: c_modified_by
+        description: 记录修改人
+      - name: c_modified_date
+        description: 记录修改时间
+      - name: ETL_LOAD_DATETIME
+        description: "ETL加载时间"
+      - name: ETL_LOAD_DATE
+        description: "ETL加载数据日期"
+
+  - name: ods_cbdb_biog_text_data
+    description: 存储人物与文本关联信息，记录人物在特定文本中的角色及相关时间信息
+    meta:
+      source_table: BIOG_TEXT_DATA
+      row_count: 86233
+    columns:
+      - name: c_textid
+        description: 关联文本的唯一标识符，对应TEXT_CODES表的c_textid
+      - name: c_personid
+        description: 人物唯一标识符，对应BIOG_MAIN表的c_personid
+      - name: c_role_id
+        description: 角色类型代码，对应TEXT_ROLE_CODES表的c_role_id
+      - name: c_year
+        description: 事件发生的年份（公历）
+      - name: c_nh_code
+        description: 年号代码，对应NIAN_HAO表的c_nianhao_id
+      - name: c_nh_year
+        description: 年号纪年对应的具体年份
+      - name: c_range_code
+        description: 年份范围代码，对应YEAR_RANGE_CODES表的c_range_code
+      - name: c_source
+        description: 数据来源标识符，可能关联TEXT_CODES表
+      - name: c_pages
+        description: 原始文献中的页码或出处信息
+      - name: c_notes
+        description: 附加说明或注释
+      - name: c_created_by
+        description: 记录创建者
+      - name: c_modified_by
+        description: 记录最后修改者
+      - name: c_created_date
+        description: 记录创建日期
+      - name: c_modified_date
+        description: 记录最后修改日期
+      - name: ETL_LOAD_DATETIME
+        description: "ETL加载时间"
+      - name: ETL_LOAD_DATE
+        description: "ETL加载数据日期"
+
+  - name: ods_cbdb_choronym_codes
+    description: 存储中国历史人物郡望代码的标准化编码表，用于记录不同姓氏家族的地理渊源信息
+    meta:
+      source_table: CHORONYM_CODES
+      row_count: 87227
+    columns:
+      - name: c_choronym_code
+        description: 郡望唯一标识代码，数字类型主键
+      - name: c_choronym_desc
+        description: 郡望的英文文字描述，记录郡望的地理或历史特征
+      - name: c_choronym_chn
+        description: 郡望的中文汉字表达，包含标准汉字名称
+      - name: ETL_LOAD_DATETIME
+        description: "ETL加载时间"
+      - name: ETL_LOAD_DATE
+        description: "ETL加载数据日期"
+
+  - name: ods_cbdb_country_codes
+    description: 存储国家代码及其对应的描述信息，包含中文和英文版本
+    meta:
+      source_table: COUNTRY_CODES
+      row_count: 87231
+    columns:
+      - name: c_country_code
+        description: 国家代码，唯一标识一个国家
+      - name: c_country_desc
+        description: 国家名称的英文描述
+      - name: c_country_desc_chn
+        description: 国家名称的中文描述
+      - name: ETL_LOAD_DATETIME
+        description: "ETL加载时间"
+      - name: ETL_LOAD_DATE
+        description: "ETL加载数据日期"
+
+  - name: ods_cbdb_dynasties
+    description: 存储中国历代朝代的基本信息，包括朝代的中英文名称、起止年份及排序顺序
+    meta:
+      source_table: DYNASTIES
+      row_count: 87233
+    columns:
+      - name: c_dy
+        description: 朝代唯一ID
+      - name: c_dynasty
+        description: 朝代名称（英文）
+      - name: c_dynasty_chn
+        description: 朝代名称（中文）
+      - name: c_start
+        description: 朝代起始年份（公元纪年）
+      - name: c_end
+        description: 朝代结束年份（公元纪年）
+      - name: c_sort
+        description: 排序序号，用于确定朝代在列表中的显示顺序
+      - name: ETL_LOAD_DATETIME
+        description: "ETL加载时间"
+      - name: ETL_LOAD_DATE
+        description: "ETL加载数据日期"
+
+  - name: ods_cbdb_entry_codes
+    description: 条目类型代码表，存储不同条目类型的代码及其描述。
+    meta:
+      source_table: ENTRY_CODES
+      row_count: 87235
+    columns:
+      - name: c_entry_code
+        description: 条目类型唯一标识代码，用于标识特定类型的条目（如科举考试类型、官职任命类型等）。
+      - name: c_entry_desc
+        description: 条目类型的英文描述，简要说明该代码对应的条目类别或性质。
+      - name: c_entry_desc_chn
+        description: 条目类型的中文描述，提供代码对应条目的中文名称或详细说明。
+      - name: ETL_LOAD_DATETIME
+        description: "ETL加载时间"
+      - name: ETL_LOAD_DATE
+        description: "ETL加载数据日期"
+
+  - name: ods_cbdb_entry_code_type_rel
+    description: 条目代码与类型关联表，用于定义每个条目代码对应的条目类型
+    meta:
+      source_table: ENTRY_CODE_TYPE_REL
+      row_count: 87242
+    columns:
+      - name: c_entry_code
+        description: 条目代码，关联到ENTRY_CODES表的c_entry_code字段
+      - name: c_entry_type
+        description: 条目类型，关联到ENTRY_TYPES表的c_entry_type字段
+      - name: ETL_LOAD_DATETIME
+        description: "ETL加载时间"
+      - name: ETL_LOAD_DATE
+        description: "ETL加载数据日期"
+
+  - name: ods_cbdb_entry_data
+    description: 记录人物的入仕途径及相关信息，包括科举、荫补、举荐等入仕方式的详细数据
+    meta:
+      source_table: ENTRY_DATA
+      row_count: 87244
+    columns:
+      - name: c_personid
+        description: 关联到 BIOG_MAIN 表的人物唯一标识符
+      - name: c_entry_code
+        description: 关联到 ENTRY_CODES 表的入仕途径类型代码
+      - name: c_sequence
+        description: 同一人物多条入仕记录的排序序号
+      - name: c_exam_rank
+        description: 科举考试中的排名（如进士甲科、乙科等）
+      - name: c_kin_code
+        description: 关联亲属关系的代码（如荫补入仕的亲属类型）
+      - name: c_kin_id
+        description: 关联亲属的具体人物ID（若通过亲属关系入仕）
+      - name: c_assoc_code
+        description: 关联社会关系的类型代码（如举荐人类型）
+      - name: c_assoc_id
+        description: 关联社会关系的具体人物ID（如举荐人ID）
+      - name: c_year
+        description: 入仕年份（绝对年份，若已知）
+      - name: c_age
+        description: 入仕时的年龄（若记录）
+      - name: c_entry_nh_id
+        description: 入仕年号ID
+      - name: c_entry_nh_year
+        description: 年号纪年中的具体年份（如“贞观三年”中的3）
+      - name: c_entry_dy
+        description: 入仕朝代编码
+      - name: c_entry_range
+        description: 关联到 YEAR_RANGE_CODES 表的年份范围代码（若年份不精确）
+      - name: c_inst_code
+        description: 关联到 SOCIAL_INSTITUTION_CODES 表的社会机构代码（如科举考场机构）
+      - name: c_inst_name_code
+        description: 关联到 SOCIAL_INSTITUTION_NAME_CODES 表的具体机构名称代码
+      - name: c_exam_field
+        description: 科举考试科目或领域（如明经科、进士科）
+      - name: c_entry_addr_id
+        description: 关联到 ADDRESSES 表的入仕地点ID（如科举考试地点）
+      - name: c_parental_status_code
+        description: 父辈身份状态编码
+      - name: c_attempt_count
+        description: 入仕尝试次数（如科举落第次数）
+      - name: c_source
+        description: 关联到 TEXT_CODES 表的资料来源文本ID
+      - name: c_pages
+        description: 资料来源的具体页码或章节
+      - name: c_notes
+        description: 入仕记录的补充注释
+      - name: c_posting_notes
+        description: 与入仕后官职任命相关的备注
+      - name: c_created_by
+        description: 记录创建者标识
+      - name: c_modified_by
+        description: 记录最后修改者标识
+      - name: c_created_date
+        description: 记录创建日期
+      - name: c_modified_date
+        description: 记录最后修改日期
+      - name: ETL_LOAD_DATETIME
+        description: "ETL加载时间"
+      - name: ETL_LOAD_DATE
+        description: "ETL加载数据日期"
+
+  - name: ods_cbdb_entry_types
+    description: 存储不同入仕途径类型的分类层级结构，用于定义科举考试、荫补等不同入仕途径的树状分类体系
+    meta:
+      source_table: ENTRY_TYPES
+      row_count: 94505
+    columns:
+      - name: c_entry_type
+        description: 条目类型唯一标识符代码
+      - name: c_entry_type_desc
+        description: 条目类型的英文描述（如科举考试、恩荫等）
+      - name: c_entry_type_desc_chn
+        description: 条目类型的中文描述
+      - name: c_entry_type_parent_id
+        description: 父级条目类型ID，用于构建分类层级结构
+      - name: c_entry_type_level
+        description: 分类层级深度（如1级分类、2级子类等）
+      - name: c_entry_type_sortorder
+        description: 同层级分类的显示排序序号
+      - name: ETL_LOAD_DATETIME
+        description: "ETL加载时间"
+      - name: ETL_LOAD_DATE
+        description: "ETL加载数据日期"
+
+  - name: ods_cbdb_ethnicity_tribe_codes
+    description: 存储中国历史上民族、族群及其子群的分类代码信息，包含民族名称、法律分类、罗马化拼写、姓氏、备注及在历代史书中的记载引用。
+    meta:
+      source_table: ETHNICITY_TRIBE_CODES
+      row_count: 94507
+    columns:
+      - name: c_ethnicity_code
+        description: 主民族代码，唯一标识特定民族或族群分类
+      - name: c_group_code
+        description: 所属上级族群代码，用于层级分类
+      - name: c_subgroup_code
+        description: 子群细分代码，标识更具体的族群分支
+      - name: c_altname_code
+        description: 替代名称或别名代码，关联其他名称编码表
+      - name: c_name_chn
+        description: 民族或族群的中文名称
+      - name: c_name
+        description: 民族或族群的英文或罗马化名称
+      - name: c_ethno_legal_cat
+        description: 民族法律分类（如官方认定的族群类别）
+      - name: c_romanized
+        description: 民族名称的罗马化拼写标准（如拼音或威妥玛式）
+      - name: c_surname
+        description: 该民族常见的姓氏
+      - name: c_notes
+        description: 备注或附加说明
+      - name: c_sortorder
+        description: 排序序号，用于控制数据展示顺序
+      - name: ETL_LOAD_DATETIME
+        description: "ETL加载时间"
+      - name: ETL_LOAD_DATE
+        description: "ETL加载数据日期"
+
+  - name: ods_cbdb_events_addr
+    description: 存储事件与地址关联信息，记录事件发生地点的时空信息
+    meta:
+      source_table: EVENTS_ADDR
+      row_count: 94527
+    columns:
+      - name: c_event_code
+        description: 事件编码
+      - name: c_personid
+        description: 人物唯一标识符，关联BIOG_MAIN表的c_personid
+      - name: c_sequence
+        description: 事件序号
+      - name: c_addr_id
+        description: 地址唯一标识符，关联ADDR_CODES表的c_addr_id
+      - name: c_year
+        description: 事件发生的年份（公历）
+      - name: c_nh_code
+        description: 年号代码，关联NIAN_HAO表的c_nianhao_id
+      - name: c_nh_year
+        description: 年号纪年中的年份
+      - name: c_yr_range
+        description: 年份范围代码，关联YEAR_RANGE_CODES表的c_range_code
+      - name: c_intercalary
+        description: 闰月标识（0=非闰月，1=闰月）
+      - name: c_month
+        description: 事件发生的月份（农历）
+      - name: c_day
+        description: 事件发生的日期（农历）
+      - name: c_day_ganzhi
+        description: 干支日代码，关联GANZHI_CODES表的c_ganzhi_code
+      - name: ETL_LOAD_DATETIME
+        description: "ETL加载时间"
+      - name: ETL_LOAD_DATE
+        description: "ETL加载数据日期"
+
+  - name: ods_cbdb_events_data
+    description: 存储与人物相关的事件记录数据，包括事件类型、时间、地点、角色及来源信息
+    meta:
+      source_table: EVENTS_DATA
+      row_count: 94529
+    columns:
+      - name: c_personid
+        description: 关联到 BIOG_MAIN 表的人物唯一标识符
+      - name: c_sequence
+        description: 同一事件记录中的排序序号
+      - name: c_event_code
+        description: 关联到 EVENT_CODES 表的事件类型代码
+      - name: c_role
+        description: 人物在事件中的角色或职务描述
+      - name: c_year
+        description: 事件发生的公历年份
+      - name: c_nh_code
+        description: 关联到 NIAN_HAO 表的年号代码
+      - name: c_nh_year
+        description: 年号纪年中的年份
+      - name: c_yr_range
+        description: 关联到 YEAR_RANGE_CODES 表的年份范围代码
+      - name: c_intercalary
+        description: 标记是否为闰月（0-否，1-是）
+      - name: c_month
+        description: 事件发生的月份（农历）
+      - name: c_day
+        description: 事件发生的日期（农历）
+      - name: c_day_ganzhi
+        description: 关联到 GANZHI_CODES 表的干支日代码
+      - name: c_addr_id
+        description: 关联到 ADDR_CODES 表的事件发生地地址代码
+      - name: c_source
+        description: 关联到 TEXT_CODES 表的来源文本代码
+      - name: c_pages
+        description: 来源文本中的具体页码或位置
+      - name: c_event
+        description: 事件内容的自由文本描述
+      - name: c_notes
+        description: 事件相关备注或补充说明
+      - name: c_created_by
+        description: 记录创建者
+      - name: c_modified_by
+        description: 记录最后修改者
+      - name: c_created_date
+        description: 记录创建日期
+      - name: c_modified_date
+        description: 记录最后修改日期
+      - name: ETL_LOAD_DATETIME
+        description: "ETL加载时间"
+      - name: ETL_LOAD_DATE
+        description: "ETL加载数据日期"
+
+  - name: ods_cbdb_event_codes
+    description: 存储事件类型代码及其相关信息，包括事件名称、时间范围、关联地址、朝代和来源信息。
+    meta:
+      source_table: EVENT_CODES
+      row_count: 94549
+    columns:
+      - name: c_event_code
+        description: 事件类型的唯一标识代码
+      - name: c_event_name_chn
+        description: 事件类型的中文名称
+      - name: c_event_name
+        description: 事件类型的英文名称
+      - name: c_fy_yr
+        description: 事件开始的公历年份
+      - name: c_ly_yr
+        description: 事件结束的公历年份
+      - name: c_fy_nh_code
+        description: 事件开始的年号代码（关联NIAN_HAO表的c_nianhao_id）
+      - name: c_ly_nh_code
+        description: 事件结束的年号代码（关联NIAN_HAO表的c_nianhao_id）
+      - name: c_fy_nh_yr
+        description: 事件开始的年号年份
+      - name: c_ly_nh_yr
+        description: 事件结束的年号年份
+      - name: c_fy_intercalary
+        description: 事件开始年份是否包含闰月（布尔值）
+      - name: c_fy_month
+        description: 事件开始的月份（1-12）
+      - name: c_ly_intercalary
+        description: 事件结束年份是否包含闰月（布尔值）
+      - name: c_ly_month
+        description: 事件结束的月份（1-12）
+      - name: c_fy_range
+        description: 事件开始年份的不确定性范围代码（关联YEAR_RANGE_CODES表的c_range_code）
+      - name: c_ly_range
+        description: 事件结束年份的不确定性范围代码（关联YEAR_RANGE_CODES表的c_range_code）
+      - name: c_addr_id
+        description: 关联地址的ID（关联ADDRESSES表的c_addr_id）
+      - name: c_dy
+        description: 关联朝代的代码（关联DYNASTIES表的c_dy）
+      - name: c_source
+        description: 来源文本的ID（关联TEXT_CODES表的c_textid）
+      - name: c_pages
+        description: 来源文本中相关页码或章节
+      - name: c_event_notes
+        description: 事件相关的附加注释或说明
+      - name: ETL_LOAD_DATETIME
+        description: "ETL加载时间"
+      - name: ETL_LOAD_DATE
+        description: "ETL加载数据日期"
+
+  - name: ods_cbdb_extant_codes
+    description: 存储现存状态代码及其对应的中英文描述，用于标识文献或作品的现存状态（如现存、缺失等）。
+    meta:
+      source_table: EXTANT_CODES
+      row_count: 94553
+    columns:
+      - name: c_extant_code
+        description: 现存状态唯一标识代码（整数类型）。
+      - name: c_extant_desc
+        description: "现存状态的英文描述（如 'Extant', 'Partially Lost'）。"
+      - name: c_extant_desc_chn
+        description: "现存状态的中文描述（如 '现存', '部分缺失'）。"
+      - name: ETL_LOAD_DATETIME
+        description: "ETL加载时间"
+      - name: ETL_LOAD_DATE
+        description: "ETL加载数据日期"
+
+  - name: ods_cbdb_ganzhi_codes
+    description: 存储干支代码及其对应的中文名称和拼音，用于表示中国传统历法中的干支纪年、纪日等信息。
+    meta:
+      source_table: GANZHI_CODES
+      row_count: 94555
+    columns:
+      - name: c_ganzhi_code
+        description: 干支的唯一标识代码，表示特定的干支组合（如甲子、乙丑等）。
+      - name: c_ganzhi_chn
+        description: "干支的中文名称（汉字表示），例如'甲子'、'乙丑'等。"
+      - name: c_ganzhi_py
+        description: "干支的拼音（拉丁字母转写），例如'jiazi'、'yichou'等。"
+      - name: ETL_LOAD_DATETIME
+        description: "ETL加载时间"
+      - name: ETL_LOAD_DATE
+        description: "ETL加载数据日期"
+
+  - name: ods_cbdb_household_status_codes
+    description: 存储户籍状态分类代码表，包含户籍类型代码及其对应的中英文状态描述
+    meta:
+      source_table: HOUSEHOLD_STATUS_CODES
+      row_count: 94557
+    columns:
+      - name: c_household_status_code
+        description: 户籍状态分类代码，用于唯一标识不同的户籍类型（如民籍/军籍/匠籍等）
+      - name: c_household_status_desc
+        description: "户籍状态英文描述（如'Civilian Household'）"
+      - name: c_household_status_desc_chn
+        description: "户籍状态中文描述（如'民籍'）"
+      - name: ETL_LOAD_DATETIME
+        description: "ETL加载时间"
+      - name: ETL_LOAD_DATE
+        description: "ETL加载数据日期"
+
+  - name: ods_cbdb_indexyear_type_codes
+    description: 存储不同索引年份类型的代码表，用于定义人物传记中使用的年份类型标准
+    meta:
+      source_table: INDEXYEAR_TYPE_CODES
+      row_count: 94559
+    columns:
+      - name: c_index_year_type_code
+        description: 索引年份类型代码，唯一标识符，用于关联其他表中使用的年份类型
+      - name: c_index_year_type_desc
+        description: 索引年份类型的英文描述，说明该代码对应的年份类型含义
+      - name: c_index_year_type_hz
+        description: 索引年份类型的中文汉字描述，提供中文语境下的类型说明
+      - name: c_notes
+        description: 附加注释字段，记录该年份类型代码的特殊说明或使用限制
+      - name: ETL_LOAD_DATETIME
+        description: "ETL加载时间"
+      - name: ETL_LOAD_DATE
+        description: "ETL加载数据日期"
+
+  - name: ods_cbdb_kinship_codes
+    description: 存储亲属关系类型代码及其相关属性，用于描述不同亲属关系的分类、中文称谓、代际步数和关系简化形式
+    meta:
+      source_table: KINSHIP_CODES
+      row_count: 94561
+    columns:
+      - name: c_kincode
+        description: 亲属关系类型唯一标识代码
+      - name: c_kin_pair1
+        description: 亲属关系配对中第一个角色的关联代码
+      - name: c_kin_pair2
+        description: 亲属关系配对中第二个角色的关联代码
+      - name: c_kin_pair_notes
+        description: 亲属关系配对的说明注释
+      - name: c_kinrel_chn
+        description: 亲属关系的中文称谓
+      - name: c_kinrel
+        description: 亲属关系的英文/拼音描述
+      - name: c_kinrel_alt
+        description: 亲属关系的替代描述
+      - name: c_pick_sorting
+        description: 亲属关系在界面中的显示排序权重
+      - name: c_upstep
+        description: 向上追溯的世代步数（如父亲为1步）
+      - name: c_dwnstep
+        description: 向下追溯的世代步数（如儿子为1步）
+      - name: c_marstep
+        description: 通过婚姻关系建立的亲属步数
+      - name: c_colstep
+        description: 旁系亲属的世代步数（如堂兄弟为1步）
+      - name: c_kinrel_simplified
+        description: 简化版的亲属关系描述（用于快速检索）
+      - name: ETL_LOAD_DATETIME
+        description: "ETL加载时间"
+      - name: ETL_LOAD_DATE
+        description: "ETL加载数据日期"
+
+  - name: ods_cbdb_kin_data
+    description: 存储人物的亲属关系数据，包括亲属的ID、亲属关系代码、来源及注释等信息
+    meta:
+      source_table: KIN_DATA
+      row_count: 94574
+    columns:
+      - name: c_personid
+        description: 主人物ID，关联BIOG_MAIN表的c_personid字段
+      - name: c_kin_id
+        description: 亲属人物ID，关联BIOG_MAIN表的c_personid字段
+      - name: c_kin_code
+        description: 亲属关系代码，关联KINSHIP_CODES表的c_kincode字段
+      - name: c_source
+        description: 数据来源的文本ID（可能关联其他来源表）
+      - name: c_pages
+        description: 来源文献的页码或位置信息
+      - name: c_notes
+        description: 关于该亲属关系的补充注释
+      - name: c_autogen_notes
+        description: 系统自动生成的备注信息
+      - name: c_created_by
+        description: 记录创建者
+      - name: c_modified_by
+        description: 记录最后修改者
+      - name: c_created_date
+        description: 记录创建日期
+      - name: c_modified_date
+        description: 记录最后修改日期
+      - name: ETL_LOAD_DATETIME
+        description: "ETL加载时间"
+      - name: ETL_LOAD_DATE
+        description: "ETL加载数据日期"
+
+  - name: ods_cbdb_kin_mourning
+    description: 亲属丧服关系表，记录亲属关系的丧服等级和服属类型
+    meta:
+      source_table: KIN_MOURNING
+      row_count: 107892
+    columns:
+      - name: c_kinrel
+        description: 亲属关系英文名（主键）
+      - name: c_kinrel_alt
+        description: 亲属关系英文别名
+      - name: c_kinrel_chn
+        description: 亲属关系中文名
+      - name: c_mourning
+        description: 丧服等级英文名
+      - name: c_mourning_chn
+        description: 丧服等级中文名
+      - name: c_kindist
+        description: 亲属距离等级
+      - name: c_kintype
+        description: 亲属类型编码
+      - name: c_kintype_desc
+        description: 亲属类型英文描述
+      - name: c_kintype_desc_chn
+        description: 亲属类型中文描述
+      - name: c_notes
+        description: 备注说明
+      - name: ETL_LOAD_DATETIME
+        description: "ETL加载时间"
+      - name: ETL_LOAD_DATE
+        description: "ETL加载数据日期"
+
+  - name: ods_cbdb_kin_mourning_steps
+    description: 存储与亲属关系相关的丧服等级步骤信息，用于描述不同亲属关系在服丧期间的步骤计算规则
+    meta:
+      source_table: KIN_MOURNING_STEPS
+      row_count: 107897
+    columns:
+      - name: c_kinrel
+        description: 亲属关系代码，标识具体的亲属关系类型（如父子、兄弟等）
+      - name: c_upstep
+        description: 向上步骤数，表示在家族谱系中向上追溯的代数
+      - name: c_dwnstep
+        description: 向下步骤数，表示在家族谱系中向下追溯的代数
+      - name: c_marstep
+        description: 婚姻步骤数，表示通过婚姻关系连接的步骤
+      - name: c_colstep
+        description: 共同步骤数，表示共同祖先的代数或关联步骤
+      - name: ETL_LOAD_DATETIME
+        description: "ETL加载时间"
+      - name: ETL_LOAD_DATE
+        description: "ETL加载数据日期"
+
+  - name: ods_cbdb_literarygenre_codes
+    description: 存储文学体裁的代码及其描述。包含中文和英文的体裁名称，以及用于排序的字段。
+    meta:
+      source_table: LITERARYGENRE_CODES
+      row_count: 107899
+    columns:
+      - name: c_lit_genre_code
+        description: 文学体裁的唯一标识代码
+      - name: c_lit_genre_desc
+        description: 文学体裁的英文描述
+      - name: c_lit_genre_desc_chn
+        description: 文学体裁的中文描述
+      - name: c_sortorder
+        description: 用于控制显示或查询时的排序顺序
+      - name: ETL_LOAD_DATETIME
+        description: "ETL加载时间"
+      - name: ETL_LOAD_DATE
+        description: "ETL加载数据日期"
+
+  - name: ods_cbdb_measure_codes
+    description: 存储度量单位的代码及其描述信息，包括英文和中文名称。
+    meta:
+      source_table: MEASURE_CODES
+      row_count: 107901
+    columns:
+      - name: c_measure_code
+        description: 度量单位的唯一标识代码
+      - name: c_measure_desc
+        description: 度量单位的英文描述或名称
+      - name: c_measure_desc_chn
+        description: 度量单位的中文描述或名称
+      - name: ETL_LOAD_DATETIME
+        description: "ETL加载时间"
+      - name: ETL_LOAD_DATE
+        description: "ETL加载数据日期"
+
+  - name: ods_cbdb_merged_person_data
+    description: 人物合并记录表，记录已合并的重复人物ID
+    meta:
+      source_table: MERGED_PERSON_DATA
+      row_count: 107903
+    columns:
+      - name: c_personid
+        description: 合并后保留的人物ID
+      - name: c_merged_from_personid
+        description: 被合并的原始人物ID
+      - name: c_notes
+        description: 备注说明
+      - name: c_source
+        description: 资料来源ID
+      - name: c_pages
+        description: 资料页码
+      - name: c_created_by
+        description: 记录创建人
+      - name: c_modified_by
+        description: 记录修改人
+      - name: c_created_date
+        description: 记录创建时间
+      - name: c_modified_date
+        description: 记录修改时间
+      - name: ETL_LOAD_DATETIME
+        description: "ETL加载时间"
+      - name: ETL_LOAD_DATE
+        description: "ETL加载数据日期"
+
+  - name: ods_cbdb_nian_hao
+    description: 存储中国历史年号信息表，记录年号的官方中文名称、拼音转写、使用朝代和使用时间范围
+    meta:
+      source_table: NIAN_HAO
+      row_count: 107983
+    columns:
+      - name: c_nianhao_id
+        description: 年号唯一标识符，主键ID
+      - name: c_dy
+        description: 关联朝代表的朝代编号，对应DYNASTIES表的c_dy字段
+      - name: c_dynasty_chn
+        description: 朝代中文名称（如：唐、宋、元等）
+      - name: c_nianhao_chn
+        description: 年号正式中文名称（如：贞观、开元、洪武）
+      - name: c_nianhao_pin
+        description: 年号拼音转写（如：zhengguan、kaiyuan、hongwu）
+      - name: c_firstyear
+        description: 年号开始使用的公历年份
+      - name: c_lastyear
+        description: 年号结束使用的公历年份
+      - name: ETL_LOAD_DATETIME
+        description: "ETL加载时间"
+      - name: ETL_LOAD_DATE
+        description: "ETL加载数据日期"
+
+  - name: ods_cbdb_occasion_codes
+    description: 存储场合类型代码及其描述的编码表，用于标识不同社交或历史场合的类型，如文学创作场合、政治事件场合等。
+    meta:
+      source_table: OCCASION_CODES
+      row_count: 107995
+    columns:
+      - name: c_occasion_code
+        description: 场合类型的唯一标识代码，整数类型主键。
+      - name: c_occasion_desc
+        description: 场合类型的英文描述，最大长度50字符。
+      - name: c_occasion_desc_chn
+        description: 场合类型的中文描述，最大长度50字符。
+      - name: c_sortorder
+        description: 排序序号，用于定义场合类型在列表中的显示顺序。
+      - name: ETL_LOAD_DATETIME
+        description: "ETL加载时间"
+      - name: ETL_LOAD_DATE
+        description: "ETL加载数据日期"
+
+  - name: ods_cbdb_office_categories
+    description: 存储官职分类信息，包括中英文分类描述和备注信息
+    meta:
+      source_table: OFFICE_CATEGORIES
+      row_count: 107997
+    columns:
+      - name: c_office_category_id
+        description: 官职分类唯一标识符
+      - name: c_category_desc
+        description: 官职分类英文描述
+      - name: c_category_desc_chn
+        description: 官职分类中文描述
+      - name: c_notes
+        description: 分类备注信息
+      - name: ETL_LOAD_DATETIME
+        description: "ETL加载时间"
+      - name: ETL_LOAD_DATE
+        description: "ETL加载数据日期"
+
+  - name: ods_cbdb_office_codes
+    description: 官职代码表，存储不同官职的中文名称、拼音、翻译以及分类信息
+    meta:
+      source_table: OFFICE_CODES
+      row_count: 107999
+    columns:
+      - name: c_office_id
+        description: 官职的唯一标识符
+      - name: c_dy
+        description: 关联的朝代代码，对应DYNASTIES表的c_dy字段
+      - name: c_office_pinyin
+        description: 官职名称的拼音表示
+      - name: c_office_chn
+        description: 官职的中文名称
+      - name: c_office_pinyin_alt
+        description: 官职的备用拼音
+      - name: c_office_chn_alt
+        description: 官职的备用中文名称
+      - name: c_office_trans
+        description: 官职的英文翻译
+      - name: c_office_trans_alt
+        description: 官职的备用英文翻译
+      - name: c_source
+        description: 记录来源的文献ID，关联到来源表（如TEXT_CODES的c_textid）
+      - name: c_pages
+        description: 来源文献中的页码
+      - name: c_notes
+        description: 备注信息
+      - name: ETL_LOAD_DATETIME
+        description: "ETL加载时间"
+      - name: ETL_LOAD_DATE
+        description: "ETL加载数据日期"
+
+  - name: ods_cbdb_office_code_type_rel
+    description: 存储官职代码与官职类型树节点之间的关联关系，用于建立官职与其分类体系之间的对应关系
+    meta:
+      source_table: OFFICE_CODE_TYPE_REL
+      row_count: 108833
+    columns:
+      - name: c_office_id
+        description: 关联的官职唯一标识符，对应OFFICE_CODES表的c_office_id字段
+      - name: c_office_tree_id
+        description: 关联的官职类型树节点ID，对应OFFICE_TYPE_TREE表的c_office_type_node_id字段
+      - name: ETL_LOAD_DATETIME
+        description: "ETL加载时间"
+      - name: ETL_LOAD_DATE
+        description: "ETL加载数据日期"
+
+  - name: ods_cbdb_office_type_tree
+    description: 存储官职类型分类的层次结构信息，支持树状结构展示官职类型的继承关系
+    meta:
+      source_table: OFFICE_TYPE_TREE
+      row_count: 109214
+    columns:
+      - name: c_office_type_node_id
+        description: 官职类型节点的唯一标识符
+      - name: c_office_type_desc
+        description: 官职类型的英文描述
+      - name: c_office_type_desc_chn
+        description: 官职类型的中文描述
+      - name: c_parent_id
+        description: 父级节点的唯一标识符，用于构建层级关系
+      - name: ETL_LOAD_DATETIME
+        description: "ETL加载时间"
+      - name: ETL_LOAD_DATE
+        description: "ETL加载数据日期"
+
+  - name: ods_cbdb_parental_status_codes
+    description: 存储父母状态代码及其描述，用于标识人物父母在世状态及相关情况
+    meta:
+      source_table: PARENTAL_STATUS_CODES
+      row_count: 109271
+    columns:
+      - name: c_parental_status_code
+        description: 父母状态唯一标识代码，用于关联其他表中涉及父母状态的数据
+      - name: c_parental_status_desc
+        description: "父母状态英文描述（如：'Both parents alive'）"
+      - name: c_parental_status_desc_chn
+        description: "父母状态中文描述（如：'父母俱存'）"
+      - name: ETL_LOAD_DATETIME
+        description: "ETL加载时间"
+      - name: ETL_LOAD_DATE
+        description: "ETL加载数据日期"
+
+  - name: ods_cbdb_possession_act_codes
+    description: 存储财产行为类型编码表，用于标准化描述个人财产相关操作行为(如继承/捐赠/购置等)的编码对照信息
+    meta:
+      source_table: POSSESSION_ACT_CODES
+      row_count: 109273
+    columns:
+      - name: c_possession_act_code
+        description: 财产行为类型唯一标识编码
+      - name: c_possession_act_desc
+        description: 财产行为类型的英文描述
+      - name: c_possession_act_desc_chn
+        description: 财产行为类型的中文描述
+      - name: ETL_LOAD_DATETIME
+        description: "ETL加载时间"
+      - name: ETL_LOAD_DATE
+        description: "ETL加载数据日期"
+
+  - name: ods_cbdb_possession_addr
+    description: 记录人物财产相关地址的关联表，用于将财产记录与地理位置信息进行关联
+    meta:
+      source_table: POSSESSION_ADDR
+      row_count: 109275
+    columns:
+      - name: c_possession_record_id
+        description: 财产记录唯一标识符，关联POSSESSION_DATA表的同名字段
+      - name: c_personid
+        description: 人物唯一标识符，关联BIOG_MAIN表的c_personid字段
+      - name: c_addr_id
+        description: 地址唯一标识符，关联ADDR_CODES表的c_addr_id字段
+      - name: ETL_LOAD_DATETIME
+        description: "ETL加载时间"
+      - name: ETL_LOAD_DATE
+        description: "ETL加载数据日期"
+
+  - name: ods_cbdb_possession_data
+    description: 存储个人财产及相关活动记录信息，包括财产获取、转让等行为的时间、数量、计量单位和地理位置信息
+    meta:
+      source_table: POSSESSION_DATA
+      row_count: 109277
+    columns:
+      - name: c_personid
+        description: 关联人物ID，对应 BIOG_MAIN 表的 c_personid
+      - name: c_possession_record_id
+        description: 财产记录唯一标识符
+      - name: c_sequence
+        description: 同一记录中多个事件的顺序编号
+      - name: c_possession_act_code
+        description: 财产行为类型代码，关联 POSSESSION_ACT_CODES 表
+      - name: c_possession_desc
+        description: 财产行为描述（英文）
+      - name: c_possession_desc_chn
+        description: 财产行为描述（中文）
+      - name: c_quantity
+        description: 财产数量
+      - name: c_measure_code
+        description: 计量单位代码，关联 MEASURE_CODES 表
+      - name: c_possession_yr
+        description: 财产行为发生的年份（公历年）
+      - name: c_possession_nh_code
+        description: 财产行为发生的年号代码，关联 NIAN_HAO 表
+      - name: c_possession_nh_yr
+        description: 年号纪年中的具体年份
+      - name: c_possession_yr_range
+        description: 年份范围代码，关联 YEAR_RANGE_CODES 表
+      - name: c_addr_id
+        description: 财产相关地理位置ID，关联 ADDR_CODES 表
+      - name: c_source
+        description: 资料来源ID，关联 TEXT_CODES 表
+      - name: c_pages
+        description: 资料引用页码或位置
+      - name: c_notes
+        description: 附加注释
+      - name: c_created_by
+        description: 记录创建者
+      - name: c_modified_by
+        description: 记录最后修改者
+      - name: c_created_date
+        description: 记录创建日期
+      - name: c_modified_date
+        description: 记录最后修改日期
+      - name: ETL_LOAD_DATETIME
+        description: "ETL加载时间"
+      - name: ETL_LOAD_DATE
+        description: "ETL加载数据日期"
+
+  - name: ods_cbdb_posted_to_addr_data
+    description: 记录人物职务派遣地点关联信息表，存储官员被派往具体地理位置的任职记录
+    meta:
+      source_table: POSTED_TO_ADDR_DATA
+      row_count: 109282
+    columns:
+      - name: c_posting_id
+        description: 职务派遣记录的唯一标识符，关联POSTED_TO_OFFICE_DATA表的派遣记录
+      - name: c_personid
+        description: 人物唯一标识符，关联BIOG_MAIN表的c_personid字段
+      - name: c_office_id
+        description: 官职机构唯一标识符，关联OFFICE_CODES表的c_office_id字段
+      - name: c_addr_id
+        description: 地理地址唯一标识符，关联ADDRESSES表的c_addr_id字段
+      - name: c_created_by
+        description: 记录创建人
+      - name: c_created_date
+        description: 记录创建时间
+      - name: c_modified_by
+        description: 记录修改人
+      - name: c_modified_date
+        description: 记录修改时间
+      - name: ETL_LOAD_DATETIME
+        description: "ETL加载时间"
+      - name: ETL_LOAD_DATE
+        description: "ETL加载数据日期"
+
+  - name: ods_cbdb_posted_to_office_data
+    description: 记录人物官职任职信息，包含任职时间、官职ID、任命类型、任职机构、来源文献等信息
+    meta:
+      source_table: POSTED_TO_OFFICE_DATA
+      row_count: 114545
+    columns:
+      - name: c_personid
+        description: 人物ID，关联BIOG_MAIN表的c_personid
+      - name: c_office_id
+        description: 官职ID，关联OFFICE_CODES表的c_office_id
+      - name: c_posting_id
+        description: 任职记录唯一标识符
+      - name: c_sequence
+        description: 任职顺序编号
+      - name: c_firstyear
+        description: 任职起始年份（公历年）
+      - name: c_fy_nh_code
+        description: 起始年份对应的年号编码，关联NIAN_HAO表的c_nianhao_id
+      - name: c_fy_nh_year
+        description: 起始年份在年号纪年中的具体年份
+      - name: c_fy_range
+        description: 起始年份范围编码，关联YEAR_RANGE_CODES表的c_range_code
+      - name: c_lastyear
+        description: 任职结束年份（公历年）
+      - name: c_ly_nh_code
+        description: 结束年份对应的年号编码，关联NIAN_HAO表的c_nianhao_id
+      - name: c_ly_nh_year
+        description: 结束年份在年号纪年中的具体年份
+      - name: c_ly_range
+        description: 结束年份范围编码，关联YEAR_RANGE_CODES表的c_range_code
+      - name: c_appt_code
+        description: 任命方式编码
+      - name: c_assume_office_code
+        description: 到任方式编码，关联ASSUME_OFFICE_CODES表的c_assume_office_code
+      - name: c_inst_code
+        description: 机构代码，关联SOCIAL_INSTITUTION_CODES表的c_inst_code
+      - name: c_inst_name_code
+        description: 机构名称代码，关联SOCIAL_INSTITUTION_NAME_CODES表的c_inst_name_code
+      - name: c_source
+        description: 来源文献ID，关联TEXT_CODES表的c_textid
+      - name: c_pages
+        description: 来源文献页码或卷册信息
+      - name: c_notes
+        description: 备注信息
+      - name: c_office_id_backup
+        description: 旧版官职ID备份字段
+      - name: c_office_category_id
+        description: 官职分类ID，关联OFFICE_CATEGORIES表的c_office_category_id
+      - name: c_fy_intercalary
+        description: 起始年份是否闰月（0=否，1=是）
+      - name: c_fy_month
+        description: 起始月份（1-12）
+      - name: c_ly_intercalary
+        description: 结束年份是否闰月（0=否，1=是）
+      - name: c_ly_month
+        description: 结束月份（1-12）
+      - name: c_fy_day
+        description: 起始日（农历日）
+      - name: c_ly_day
+        description: 结束日（农历日）
+      - name: c_fy_day_gz
+        description: 起始日干支编码，关联GANZHI_CODES表的c_ganzhi_code
+      - name: c_ly_day_gz
+        description: 结束日干支编码，关联GANZHI_CODES表的c_ganzhi_code
+      - name: c_dy
+        description: 朝代编码，关联DYNASTIES表的c_dy
+      - name: c_created_by
+        description: 记录创建者
+      - name: c_modified_by
+        description: 记录最后修改者
+      - name: c_created_date
+        description: 记录创建日期
+      - name: c_modified_date
+        description: 记录最后修改日期
+      - name: ETL_LOAD_DATETIME
+        description: "ETL加载时间"
+      - name: ETL_LOAD_DATE
+        description: "ETL加载数据日期"
+
+  - name: ods_cbdb_posting_data
+    description: 存储任职记录的基本关联信息，用于关联人物与其任职记录的主表
+    meta:
+      source_table: POSTING_DATA
+      row_count: 131754
+    columns:
+      - name: c_personid
+        description: 关联人物的唯一标识符，对应 BIOG_MAIN 表中的 c_personid
+      - name: c_posting_id
+        description: 任职记录的唯一标识符（必填字段），可关联到 POSTED_TO_OFFICE_DATA 或 POSTED_TO_ADDR_DATA 表的 c_posting_id
+      - name: c_created_by
+        description: 记录创建人
+      - name: c_created_date
+        description: 记录创建时间
+      - name: c_modified_by
+        description: 记录修改人
+      - name: c_modified_date
+        description: 记录修改时间
+      - name: ETL_LOAD_DATETIME
+        description: "ETL加载时间"
+      - name: ETL_LOAD_DATE
+        description: "ETL加载数据日期"
+
+  - name: ods_cbdb_scholarlytopic_codes
+    description: 存储学术主题分类代码及其描述信息，用于标识不同学术研究领域的中英文名称和分类信息
+    meta:
+      source_table: SCHOLARLYTOPIC_CODES
+      row_count: 136465
+    columns:
+      - name: c_topic_code
+        description: 学术主题的唯一标识代码
+      - name: c_topic_desc
+        description: 学术主题的英文描述
+      - name: c_topic_desc_chn
+        description: 学术主题的中文描述
+      - name: c_topic_type_code
+        description: 学术主题类型分类代码
+      - name: c_topic_type_desc
+        description: 学术主题类型的英文描述
+      - name: c_topic_type_desc_chn
+        description: 学术主题类型的中文描述
+      - name: c_sortorder
+        description: 排序序号，用于控制主题的显示顺序
+      - name: ETL_LOAD_DATETIME
+        description: "ETL加载时间"
+      - name: ETL_LOAD_DATE
+        description: "ETL加载数据日期"
+
+  - name: ods_cbdb_social_institution_addr
+    description: 记录社会机构地址信息的关联表，包含机构地址类型、地理坐标及时间范围等信息
+    meta:
+      source_table: SOCIAL_INSTITUTION_ADDR
+      row_count: 136468
+    columns:
+      - name: c_inst_name_code
+        description: 社会机构名称代码，关联 SOCIAL_INSTITUTION_NAME_CODES 表的 c_inst_name_code
+      - name: c_inst_code
+        description: 社会机构代码，关联 SOCIAL_INSTITUTION_CODES 表的 c_inst_code
+      - name: c_inst_addr_type_code
+        description: 机构地址类型代码，关联 SOCIAL_INSTITUTION_ADDR_TYPES 表的 c_inst_addr_type_code
+      - name: c_inst_addr_begin_year
+        description: 机构地址起始年份（可为空）
+      - name: c_inst_addr_end_year
+        description: 机构地址结束年份（可为空）
+      - name: c_inst_addr_id
+        description: 地址唯一标识符，关联 ADDR_CODES 表的 c_addr_id
+      - name: inst_xcoord
+        description: 机构地址的经度坐标
+      - name: inst_ycoord
+        description: 机构地址的纬度坐标
+      - name: c_source
+        description: 资料来源标识符，关联 TEXT_CODES 表的 c_textid
+      - name: c_pages
+        description: 资料引用页码或位置
+      - name: c_notes
+        description: 附加说明或注释
+      - name: ETL_LOAD_DATETIME
+        description: "ETL加载时间"
+      - name: ETL_LOAD_DATE
+        description: "ETL加载数据日期"
+
+  - name: ods_cbdb_social_institution_addr_types
+    description: 存储社会机构地址类型编码表，定义社会机构不同地址类型的分类标准与描述信息
+    meta:
+      source_table: SOCIAL_INSTITUTION_ADDR_TYPES
+      row_count: 136588
+    columns:
+      - name: c_inst_addr_type_code
+        description: 社会机构地址类型唯一编码标识符，数字型主键
+      - name: c_inst_addr_type_desc
+        description: 地址类型的英文描述文本，说明地址类型的性质和用途
+      - name: c_inst_addr_type_chn
+        description: 地址类型的中文描述文本，说明地址类型的性质和用途
+      - name: c_notes
+        description: 地址类型相关补充说明或注释信息
+      - name: ETL_LOAD_DATETIME
+        description: "ETL加载时间"
+      - name: ETL_LOAD_DATE
+        description: "ETL加载数据日期"
+
+  - name: ods_cbdb_social_institution_altname_codes
+    description: 存储社会机构别名类型代码表，定义机构别名的分类编码标准
+    meta:
+      source_table: SOCIAL_INSTITUTION_ALTNAME_CODES
+      row_count: 136590
+    columns:
+      - name: c_inst_altname_type
+        description: 机构别名类型代码，唯一标识一种别名分类
+      - name: c_inst_altname_desc
+        description: 机构别名类型英文描述，说明别名类型的性质或用途
+      - name: c_inst_altname_chn
+        description: 机构别名类型中文描述，说明别名类型的汉字表示
+      - name: c_notes
+        description: 备注字段，记录该别名类型代码的补充说明信息
+      - name: ETL_LOAD_DATETIME
+        description: "ETL加载时间"
+      - name: ETL_LOAD_DATE
+        description: "ETL加载数据日期"
+
+  - name: ods_cbdb_social_institution_altname_data
+    description: 社会机构别名数据表，存储机构的其他名称或别名信息
+    meta:
+      source_table: SOCIAL_INSTITUTION_ALTNAME_DATA
+      row_count: 136591
+    columns:
+      - name: c_inst_name_code
+        description: 机构名称代码，外键关联SOCIAL_INSTITUTION_NAME_CODES表的c_inst_name_code字段
+      - name: c_inst_code
+        description: 机构代码，外键关联SOCIAL_INSTITUTION_CODES表的c_inst_code字段
+      - name: c_inst_altname_type
+        description: 别名类型代码，外键关联SOCIAL_INSTITUTION_ALTNAME_CODES表的c_inst_altname_type字段
+      - name: c_inst_altname_hz
+        description: 机构别名汉字表示
+      - name: c_inst_altname_py
+        description: 机构别名拼音表示
+      - name: c_source
+        description: 资料来源，外键关联TEXT_CODES表的c_textid字段
+      - name: c_pages
+        description: 资料来源页码或位置信息
+      - name: c_notes
+        description: 备注或附加说明
+      - name: ETL_LOAD_DATETIME
+        description: "ETL加载时间"
+      - name: ETL_LOAD_DATE
+        description: "ETL加载数据日期"
+
+  - name: ods_cbdb_social_institution_codes
+    description: 存储社会机构的基本信息，包括机构名称代码、机构代码、类型代码、起始与结束时间、年号关联、来源及注释等信息。
+    meta:
+      source_table: SOCIAL_INSTITUTION_CODES
+      row_count: 136592
+    columns:
+      - name: c_inst_name_code
+        description: 机构名称代码，对应 SOCIAL_INSTITUTION_NAME_CODES 表中的 c_inst_name_code 字段。
+      - name: c_inst_code
+        description: 机构唯一标识代码，可能与 SOCIAL_INSTITUTION_CODES_CONVERSION 表关联。
+      - name: c_inst_type_code
+        description: 机构类型代码，对应 SOCIAL_INSTITUTION_TYPES 表中的 c_inst_type_code 字段。
+      - name: c_inst_begin_year
+        description: 机构的起始年份（公元纪年）。
+      - name: c_by_nianhao_code
+        description: 起始年份对应的年号代码，关联 NIAN_HAO 表中的 c_nianhao_id。
+      - name: c_by_nianhao_year
+        description: 年号对应的具体年份（如“洪武三年”中的“三年”）。
+      - name: c_by_year_range
+        description: 起始年份的范围代码（如模糊年份），关联 YEAR_RANGE_CODES 表的 c_range_code。
+      - name: c_inst_begin_dy
+        description: 机构起始朝代代码，关联 DYNASTIES 表的 c_dy 字段。
+      - name: c_inst_floruit_dy
+        description: 机构活跃的主要朝代代码，关联 DYNASTIES 表的 c_dy 字段。
+      - name: c_inst_first_known_year
+        description: 机构首次被记载的年份（公元纪年）。
+      - name: c_inst_end_year
+        description: 机构的结束年份（公元纪年）。
+      - name: c_ey_nianhao_code
+        description: 结束年份对应的年号代码，关联 NIAN_HAO 表中的 c_nianhao_id。
+      - name: c_ey_nianhao_year
+        description: 结束年号对应的具体年份。
+      - name: c_ey_year_range
+        description: 结束年份的范围代码，关联 YEAR_RANGE_CODES 表的 c_range_code。
+      - name: c_inst_end_dy
+        description: 机构结束的朝代代码，关联 DYNASTIES 表的 c_dy 字段。
+      - name: c_inst_last_known_year
+        description: 机构最后被记载的年份（公元纪年）。
+      - name: c_source
+        description: 资料来源代码，关联 TEXT_CODES 表的 c_textid 字段。
+      - name: c_pages
+        description: 资料来源中的具体页码或卷号。
+      - name: c_notes
+        description: 关于该机构的其他注释或补充说明。
+      - name: ETL_LOAD_DATETIME
+        description: "ETL加载时间"
+      - name: ETL_LOAD_DATE
+        description: "ETL加载数据日期"
+
+  - name: ods_cbdb_social_institution_name_codes
+    description: 存储社会机构名称的标准编码及其对应的汉字与拼音表示，用于统一机构名称的标识和检索。
+    meta:
+      source_table: SOCIAL_INSTITUTION_NAME_CODES
+      row_count: 136712
+    columns:
+      - name: c_inst_name_code
+        description: 社会机构名称的唯一标识编码，用于关联其他表中机构名称信息
+      - name: c_inst_name_hz
+        description: 社会机构名称的汉字表示，最大长度50字符
+      - name: c_inst_name_py
+        description: 社会机构名称的拼音表示，用于拉丁化检索和标注
+      - name: ETL_LOAD_DATETIME
+        description: "ETL加载时间"
+      - name: ETL_LOAD_DATE
+        description: "ETL加载数据日期"
+
+  - name: ods_cbdb_social_institution_types
+    description: 存储社会机构类型的编码表，包含机构类型的拼音缩写和汉字表示
+    meta:
+      source_table: SOCIAL_INSTITUTION_TYPES
+      row_count: 136744
+    columns:
+      - name: c_inst_type_code
+        description: 社会机构类型的唯一编码标识符
+      - name: c_inst_type_py
+        description: 社会机构类型的拼音（罗马化）名称
+      - name: c_inst_type_hz
+        description: 社会机构类型的中文汉字名称
+      - name: ETL_LOAD_DATETIME
+        description: "ETL加载时间"
+      - name: ETL_LOAD_DATE
+        description: "ETL加载数据日期"
+
+  - name: ods_cbdb_status_codes
+    description: 存储不同状态代码及其描述的参考表，用于记录系统中使用的各种状态类型及其对应的中英文描述信息
+    meta:
+      source_table: STATUS_CODES
+      row_count: 136746
+    columns:
+      - name: c_status_code
+        description: 状态类型唯一标识代码，用于关联其他表中的状态信息
+      - name: c_status_desc
+        description: 状态类型的英文描述文本，说明该状态代码代表的含义
+      - name: c_status_desc_chn
+        description: 状态类型的中文描述文本，提供对应的中文释义说明
+      - name: ETL_LOAD_DATETIME
+        description: "ETL加载时间"
+      - name: ETL_LOAD_DATE
+        description: "ETL加载数据日期"
+
+  - name: ods_cbdb_status_code_type_rel
+    description: 状态代码与状态类型代码关联表，用于映射状态代码与其对应的状态类型分类关系
+    meta:
+      source_table: STATUS_CODE_TYPE_REL
+      row_count: 136751
+    columns:
+      - name: c_status_code
+        description: 状态代码，关联到STATUS_CODES表的c_status_code字段
+      - name: c_status_type_code
+        description: 状态类型代码，关联到STATUS_TYPES表的c_status_type_code字段
+      - name: ETL_LOAD_DATETIME
+        description: "ETL加载时间"
+      - name: ETL_LOAD_DATE
+        description: "ETL加载数据日期"
+
+  - name: ods_cbdb_status_data
+    description: 存储人物的状态信息，包括状态代码、起始年份、结束年份及相关补充信息
+    meta:
+      source_table: STATUS_DATA
+      row_count: 136753
+    columns:
+      - name: c_personid
+        description: 关联到BIOG_MAIN表的人物唯一标识符
+      - name: c_sequence
+        description: 同一人物多个状态记录的排序序号
+      - name: c_status_code
+        description: 状态代码，引用STATUS_CODES表的c_status_code
+      - name: c_firstyear
+        description: 状态起始年份（公历年份）
+      - name: c_fy_nh_code
+        description: 起始年份对应的年号代码，引用NIAN_HAO表的c_nianhao_id
+      - name: c_fy_nh_year
+        description: 起始年份在年号中的具体年份
+      - name: c_fy_range
+        description: 起始年份范围代码，引用YEAR_RANGE_CODES表的c_range_code
+      - name: c_lastyear
+        description: 状态结束年份（公历年份）
+      - name: c_ly_nh_code
+        description: 结束年份对应的年号代码，引用NIAN_HAO表的c_nianhao_id
+      - name: c_ly_nh_year
+        description: 结束年份在年号中的具体年份
+      - name: c_ly_range
+        description: 结束年份范围代码，引用YEAR_RANGE_CODES表的c_range_code
+      - name: c_supplement
+        description: 状态补充说明（如特殊身份或头衔）
+      - name: c_source
+        description: 资料来源代码，引用TEXT_CODES表的c_textid
+      - name: c_pages
+        description: 资料来源的页码或卷号
+      - name: c_notes
+        description: 状态记录的附加注释
+      - name: c_created_by
+        description: 记录创建者标识
+      - name: c_modified_by
+        description: 记录最后修改者标识
+      - name: c_created_date
+        description: 记录创建日期
+      - name: c_modified_date
+        description: 记录最后修改日期
+      - name: ETL_LOAD_DATETIME
+        description: "ETL加载时间"
+      - name: ETL_LOAD_DATE
+        description: "ETL加载数据日期"
+
+  - name: ods_cbdb_status_types
+    description: 存储状态类型层级结构的元数据表，用于定义不同社会身份状态类型的分类及其层级关系
+    meta:
+      source_table: STATUS_TYPES
+      row_count: 138220
+    columns:
+      - name: c_status_type_code
+        description: 状态类型唯一标识代码，12位定长字符类型
+      - name: c_status_type_desc
+        description: 状态类型的英文描述，可变长度说明文本
+      - name: c_status_type_chn
+        description: 状态类型的中文描述，包含汉字说明
+      - name: c_status_type_parent_code
+        description: 父级状态类型代码，用于构建多级分类结构
+      - name: ETL_LOAD_DATETIME
+        description: "ETL加载时间"
+      - name: ETL_LOAD_DATE
+        description: "ETL加载数据日期"
+
+  - name: ods_cbdb_text_biblcat_codes
+    description: 存储文本目录分类代码及其层级结构的元数据表，用于定义文献目录的分类体系（如四部分类法扩展体系）。包含分类代码、描述、中文名称、拼音、父级分类ID、分类层级和排序顺序等字段。
+    meta:
+      source_table: TEXT_BIBLCAT_CODES
+      row_count: 138222
+    columns:
+      - name: c_text_cat_code
+        description: 分类代码唯一标识符，作为分类体系节点的唯一编码
+      - name: c_text_cat_desc
+        description: "分类的英文描述，说明该分类的具体内容（如'Historiography'表示史部）"
+      - name: c_text_cat_desc_chn
+        description: "分类的中文名称（如'史部'），用于显示和检索"
+      - name: c_text_cat_pinyin
+        description: "分类中文名称的拼音形式，用于音序排序和检索（如'shibu'）"
+      - name: c_text_cat_parent_id
+        description: "父级分类代码，指向同一表中c_text_cat_code字段，用于构建树形层级结构（如'史部'的父节点为根节点）"
+      - name: c_text_cat_level
+        description: 分类在树形结构中的层级（如1表示一级分类，2表示二级子分类）
+      - name: c_text_cat_sortorder
+        description: 分类在同一层级中的显示顺序编号，用于控制目录展示次序
+      - name: ETL_LOAD_DATETIME
+        description: "ETL加载时间"
+      - name: ETL_LOAD_DATE
+        description: "ETL加载数据日期"
+
+  - name: ods_cbdb_text_biblcat_code_type_rel
+    description: 存储文献目录分类代码与其对应分类类型之间的关联关系
+    meta:
+      source_table: TEXT_BIBLCAT_CODE_TYPE_REL
+      row_count: 138227
+    columns:
+      - name: c_text_cat_code
+        description: 文献目录分类代码标识符，关联到TEXT_BIBLCAT_CODES表的c_text_cat_code字段
+      - name: c_text_cat_type_id
+        description: 文献目录分类类型标识符，关联到TEXT_BIBLCAT_TYPES表的c_text_cat_type_id字段
+      - name: ETL_LOAD_DATETIME
+        description: "ETL加载时间"
+      - name: ETL_LOAD_DATE
+        description: "ETL加载数据日期"
+
+  - name: ods_cbdb_text_biblcat_types
+    description: 存储文本书目分类类型的层级结构信息，用于管理不同分类类型的父子关系和展示顺序。
+    meta:
+      source_table: TEXT_BIBLCAT_TYPES
+      row_count: 138229
+    columns:
+      - name: c_text_cat_type_id
+        description: 分类类型的唯一标识符
+      - name: c_text_cat_type_desc
+        description: 分类类型的英文描述
+      - name: c_text_cat_type_desc_chn
+        description: 分类类型的中文描述
+      - name: c_text_cat_type_parent_id
+        description: 父级分类类型的ID，用于构建层级结构
+      - name: c_text_cat_type_level
+        description: 分类类型在层级结构中的等级（如：1级为顶层分类）
+      - name: c_text_cat_type_sortorder
+        description: 同一层级内分类类型的展示顺序
+      - name: ETL_LOAD_DATETIME
+        description: "ETL加载时间"
+      - name: ETL_LOAD_DATE
+        description: "ETL加载数据日期"
+
+  - name: ods_cbdb_text_codes
+    description: 存储文献典籍的基本书目信息，包括标题、版本、出版信息、保存状态及相关参考链接等元数据
+    meta:
+      source_table: TEXT_CODES
+      row_count: 138231
+    columns:
+      - name: c_textid
+        description: 文献唯一标识符
+      - name: c_title_chn
+        description: 文献中文标题
+      - name: c_title
+        description: 文献标题（拼音/英文）
+      - name: c_title_trans
+        description: 文献标题翻译
+      - name: c_text_type_id
+        description: 文献类型标识，关联TEXT_TYPE表
+      - name: c_text_year
+        description: 文献创作年份（公历年）
+      - name: c_text_nh_code
+        description: 文献创作年号编码，关联NIAN_HAO表
+      - name: c_text_nh_year
+        description: 文献创作年号年份
+      - name: c_text_range_code
+        description: 文献创作时间范围编码，关联YEAR_RANGE_CODES表
+      - name: c_bibl_cat_code
+        description: 书目分类编码，关联TEXT_BIBLCAT_CODES表
+      - name: c_extant
+        description: 现存状态编码，关联EXTANT_CODES表
+      - name: c_text_country
+        description: 文献创作国家编码，关联COUNTRY_CODES表
+      - name: c_text_dy
+        description: 文献创作朝代编码，关联DYNASTIES表
+      - name: c_source
+        description: 资料来源编码
+      - name: c_pages
+        description: 资料来源页码
+      - name: c_url_api
+        description: 文献API访问链接
+      - name: c_url_api_coda
+        description: CODA平台API链接
+      - name: c_url_homepage
+        description: 文献主页URL
+      - name: c_notes
+        description: 附加注释
+      - name: c_title_alt_chn
+        description: 文献中文别名
+      - name: c_created_by
+        description: 创建者
+      - name: c_modified_by
+        description: 最后修改者
+      - name: c_created_date
+        description: 创建日期
+      - name: c_modified_date
+        description: 最后修改日期
+      - name: ETL_LOAD_DATETIME
+        description: "ETL加载时间"
+      - name: ETL_LOAD_DATE
+        description: "ETL加载数据日期"
+
+  - name: ods_cbdb_text_instance_data
+    description: 存储文本实例数据，记录文献不同版本或实例的出版信息、存世状态及相关元数据
+    meta:
+      source_table: TEXT_INSTANCE_DATA
+      row_count: 140262
+    columns:
+      - name: c_textid
+        description: 关联主文本的唯一标识符，外键参考TEXT_CODES.c_textid
+      - name: c_text_edition_id
+        description: 文本版本的唯一标识符
+      - name: c_text_instance_id
+        description: 文本实例的唯一标识符
+      - name: c_instance_title_chn
+        description: 文本实例的中文标题
+      - name: c_instance_title
+        description: 文本实例的拼音/英文标题
+      - name: c_instance_title_trans
+        description: 文本实例的翻译标题
+      - name: c_part_of_instance
+        description: 所属父实例的标识符
+      - name: c_part_of_instance_notes
+        description: 所属父实例关系的注释
+      - name: c_pub_country
+        description: 出版国家代码，外键参考COUNTRY_CODES.c_country_code
+      - name: c_pub_dy
+        description: 出版朝代代码，外键参考DYNASTIES.c_dy
+      - name: c_pub_year
+        description: 出版年份（文字描述）
+      - name: c_pub_nh_code
+        description: 出版年号代码，外键参考NIAN_HAO.c_nianhao_id
+      - name: c_pub_nh_year
+        description: 年号对应的具体年份
+      - name: c_pub_range_code
+        description: 出版时间范围代码，外键参考YEAR_RANGE_CODES.c_range_code
+      - name: c_pub_loc
+        description: 出版地点描述
+      - name: c_publisher
+        description: 出版商/机构名称
+      - name: c_print
+        description: 印刷版本信息
+      - name: c_pub_notes
+        description: 出版相关补充说明
+      - name: c_source
+        description: 资料来源代码，外键参考TEXT_CODES.c_textid
+      - name: c_pages
+        description: 资料引用页码
+      - name: c_extant
+        description: 存世状态代码，外键参考EXTANT_CODES.c_extant_code
+      - name: c_url_api
+        description: 相关API访问链接
+      - name: c_url_homepage
+        description: 相关主页链接
+      - name: c_notes
+        description: 自由文本注释
+      - name: c_number
+        description: 编号/流水号
+      - name: c_counter
+        description: 计数器/统计标识
+      - name: c_title_alt_chn
+        description: 替代中文标题
+      - name: c_created_by
+        description: 记录创建者
+      - name: c_modified_by
+        description: 记录最后修改者
+      - name: c_created_date
+        description: 记录创建日期
+      - name: c_modified_date
+        description: 记录最后修改日期
+      - name: ETL_LOAD_DATETIME
+        description: "ETL加载时间"
+      - name: ETL_LOAD_DATE
+        description: "ETL加载数据日期"
+
+  - name: ods_cbdb_text_role_codes
+    description: 存储文本角色类型代码及其描述的代码表，用于标识文本创作、编辑或相关活动中涉及的不同角色类型
+    meta:
+      source_table: TEXT_ROLE_CODES
+      row_count: 140596
+    columns:
+      - name: c_role_id
+        description: 角色类型唯一标识符，主键字段
+      - name: c_role_desc
+        description: 角色类型的英文描述（如作者、编者、注释者等）
+      - name: c_role_desc_chn
+        description: 角色类型的中文描述（如：作者、编者、注释者等）
+      - name: ETL_LOAD_DATETIME
+        description: "ETL加载时间"
+      - name: ETL_LOAD_DATE
+        description: "ETL加载数据日期"
+
+  - name: ods_cbdb_text_type
+    description: 存储文本类型分类信息，用于定义不同文本类型及其层次结构
+    meta:
+      source_table: TEXT_TYPE
+      row_count: 140598
+    columns:
+      - name: c_text_type_code
+        description: 文本类型唯一标识代码
+      - name: c_text_type_desc
+        description: 文本类型英文描述
+      - name: c_text_type_desc_chn
+        description: 文本类型中文描述
+      - name: c_text_type_parent_id
+        description: 父级文本类型代码，用于构建分类层级
+      - name: c_text_type_level
+        description: 当前类型在分类树中的层级
+      - name: c_text_type_sortorder
+        description: 同层级类型显示顺序编号
+      - name: ETL_LOAD_DATETIME
+        description: "ETL加载时间"
+      - name: ETL_LOAD_DATE
+        description: "ETL加载数据日期"
+
+  - name: ods_cbdb_year_range_codes
+    description: 存储年份范围代码及其对应的中英文描述，用于标识时间范围的精度和近似值。
+    meta:
+      source_table: YEAR_RANGE_CODES
+      row_count: 140603
+    columns:
+      - name: c_range_code
+        description: 年份范围唯一标识代码，用于关联其他表中时间范围字段
+      - name: c_range
+        description: 年份范围的英文描述（如：Exact year, Circa等）
+      - name: c_range_chn
+        description: 年份范围的中文描述（如：确年、大约等）
+      - name: c_approx
+        description: 约数标识英文
+      - name: c_approx_chn
+        description: 约数标识中文
+      - name: ETL_LOAD_DATETIME
+        description: "ETL加载时间"
+      - name: ETL_LOAD_DATE
+        description: "ETL加载数据日期"
