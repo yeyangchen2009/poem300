@@ -237,8 +237,8 @@ def _write_writings(con, writings: list):
             con.execute("""
                 INSERT INTO writing_comment (writing_id, book, section, content, full_path)
                 VALUES (?, ?, ?, ?, ?) ON CONFLICT DO NOTHING
-            """, [wid, comment.get("Book", ""), comment.get("Section", ""),
-                  comment.get("Content", ""), comment.get("FullPath")])
+            """, [wid, comment.get("Book") or "", comment.get("Section") or "",
+                  comment.get("Content") or "", comment.get("FullPath") or ""])
 
         for allusion in (w.get("Allusions") or []):
             con.execute("""
