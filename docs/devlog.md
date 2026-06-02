@@ -562,3 +562,192 @@ flowchart TD
 修改:
   docs/devlog.md                       +本节更新记录
 ```
+
+---
+
+## 2026-05-31 ~ 06-01 开发记录
+
+### （九）诗人传记卡片功能
+
+#### 背景
+
+唐诗三百首网页版中作者名为纯文本，无交互。用户希望利用 CBDB 数据库中的历史人物信息，为 77 位诗人制作传记卡片。点击作者名字即可弹出侧滑面板，展示生卒年、籍贯、字号、入仕途径、官职等传记信息。
+
+#### 数据提取
+
+编写 `cbdb/scripts/export-poet-bio.js`，通过 `better-sqlite3` 查询 CBDB SQLite 数据库，提取 77 位诗人的传记信息。
+
+查询了 11 张 CBDB 表（7 张数据表 + 4 张代码表）：
+
+| 数据表 | 用途 |
+|--------|------|
+| BIOG_MAIN | 人物主表，匹配诗人（c_name_chn + c_dy） |
+| ALTNAME_DATA + ALTNAME_CODES | 字号别号（过滤 type 4,5,6,7,19,20） |
+| STATUS_DATA + STATUS_CODES | 社会身份 |
+| ENTRY_DATA + ENTRY_CODES | 入仕途径 |
+| BIOG_ADDR_DATA + ADDR_CODES | 籍贯地址（c_natal=1 优先） |
+| POSTED_TO_OFFICE_DATA + OFFICE_CODES | 主要官职 |
+
+简繁映射：CBDB 用繁体字（王維），项目用简体字（王维），脚本内置 50 个姓名映射。特殊映射如 唐玄宗→李隆基(唐玄宗)、僧皎然→釋皎然。
+
+输出 `src/poet-bio.json`，72/77 位诗人有数据（5 位无 CBDB 记录：无名氏、柳中庸、刘脊虚、朱庆余、邱为）。
+
+#### 构建集成
+
+修改 `build.js`，在构建末尾读取 `poet-bio.json` 合并到 `data.poetBios`，输出到 `dist/data.json`。
+
+#### 前端实现
+
+在 `src/index.html` 中添加传记侧滑面板：
+
+- 作者 `<span>` 加 `data-bio` 属性，有传记数据则绑定点击事件
+- 复用设置面板的 overlay + slide-in 交互模式
+- 面板内容：生卒年（大号字）、字号别号（药丸标签）、籍贯、入仕途径、官职、社会身份
+- ESC 键 / 点击遮罩 / 关闭按钮均可关闭
+- 移动端面板宽度 100%
+
+#### 文件变更
+
+```
+新增:
+  cbdb/scripts/export-poet-bio.js   数据提取脚本
+  src/poet-bio.json                 72 位诗人传记静态数据
+  cbdb/docs/poet-bio-card.md        技术实现文档
+
+修改:
+  build.js                          +poetBios 合并
+  src/index.html                    +传记面板 CSS/HTML/JS
+```
+
+---
+
+### （十）诗歌系年系地数据调研
+
+#### 背景
+
+用户希望为每首诗标注"创作年份"（系年）和"创作地点"（系地）。CBDB 的粒度是"人物"和"文集"，无单首诗的系年数据。需要调研其他数据源。
+
+#### 调研过程
+
+1. **CBDB**：确认无单首诗系年。TEXT_CODES 表存文集级别（61,070 部），静夜思不在 CBDB 中。
+
+2. **GitHub 开源项目**：chinese-poetry (45k stars) 等 4 个项目，均无系年字段。
+
+3. **发现 cnkgraph.com**：古籍文献知识图谱网，提供开放 Web API，包含王兆鹏教授团队的 62,559 条编年记录。
+
+#### cnkgraph API 实测
+
+解析了 12 个 Postman 集合（71 个端点），验证了关键数据：
+
+| 项目 | 结果 |
+|------|------|
+| API 地址 | `https://api.cnkgraph.com/api/` |
+| 诗文总量 | 2,012,794 首（唐朝 74,805 首） |
+| 无需认证 | GET 请求直接返回 JSON |
+| 静夜思系年 | `AuthorDate: "727年"`, `AuthorPlace: "湖北省孝感市安陆市"` |
+| 李白人物 ID | 15188，返回完整传记（生卒年、17 个别名、官职、籍贯、多部辞书传记原文） |
+
+关键发现：列表接口 `/api/writing/{朝代}/{作者}/{ID}/Poem` 每页 20 首，**已包含完整诗句、评注、用典**。只有 `Links`（结构化编年系地标签）需单独调 `/api/writing/{id}`。
+
+#### 文档输出
+
+`docs/poem-dating-research.md`：完整调研报告，包含 API 端点详解、调用示例、curl/Node.js 示例代码。
+
+#### 文件变更
+
+```
+新增:
+  docs/poem-dating-research.md    诗歌系年系地数据调研文档
+
+修改:
+  docs/devlog.md                  +本节更新记录
+```
+
+---
+
+## 2026-06-01 ~ 06-02 开发记录
+
+### （十一）cnkgraph 全量爬虫项目规划
+
+#### 背景
+
+用户指出"这次只爬唐诗三百首，以后扩展还要重新爬"，要求把 cnkgraph 全部数据统统爬下来，一次爬取永久受用。
+
+#### 技术栈选型
+
+对比了 Python 和 Node.js：
+
+| 对比项 | Python | Node.js |
+|--------|--------|---------|
+| DuckDB 绑定 | 官方一等公民 (1.5.2 已装) | npm 第三方包，API 不全 |
+| 异步 HTTP | aiohttp 3.13 已装 | fetch 原生，无连接池 |
+| 批量写入 | COPY 极快 | 逐条 INSERT |
+
+**结论：选 Python。** DuckDB 官方绑定 + aiohttp + asyncio，本机已就绪。
+
+#### 数据库设计
+
+25 张表覆盖 cnkgraph 全部 12 个模块，存储为 DuckDB（列式压缩预估 500MB ~ 1GB）。
+
+核心表：
+
+| 模块 | 表 | 预估行数 |
+|------|-----|---------|
+| 诗文 | writing + writing_clause + writing_comment + writing_link + writing_allusion | 200万 + 2000万 + 400万 + 100万 + 50万 |
+| 人物 | person + person_alias + person_hometown + person_detail | 10万 + 50万 + 10万 + 20万 |
+| 地理 | region + region_history + scenery | 3千 + 1万 + 1万 |
+| 其他 | dynasty, era_year, book, book_volume, glossary, rhyme_entry, rhyme_char, ci_tune, qu_tune, category_entry, char_dict | — |
+
+所有 25 张表已补充 `COMMENT ON TABLE` 和 `COMMENT ON COLUMN` 注释。
+
+#### 爬取策略
+
+5 个阶段，支持断点续爬：
+
+| 阶段 | 内容 | 耗时 |
+|------|------|------|
+| 1 | 年历（朝代 + 年号） | ~3 min |
+| 2 | 人物（15 朝代翻页 + 详情） | ~30 min |
+| 3 | 诗文（15 朝代 × 作者 × 翻页） | ~2-10 h |
+| 4 | 地理（去重所有 region_id） | ~15 min |
+| 5 | 古籍 + 词汇 + 韵典 + 词谱 + 曲谱 + 类书 + 字典 | ~1 h |
+
+并发模型：`asyncio.Semaphore(5)` 控制 5 并发 + 200ms 随机间隔，5 并发约 2-3 小时跑完。
+
+#### 项目结构
+
+```
+cnkgraph/
+├── data/cnkgraph.duckdb         # 目标数据库
+├── docs/prd.md                  # 爬虫 PRD
+├── postman/                     # API 参考集合
+├── src/
+│   ├── crawl.py                 # 主入口 CLI
+│   ├── db.py                    # DuckDB 建表 + 写入
+│   ├── api.py                   # aiohttp 客户端 + 限速
+│   ├── stages/                  # 各阶段爬虫
+│   │   ├── stage1_calendar.py
+│   │   ├── stage2_people.py
+│   │   ├── stage3_writing.py
+│   │   ├── stage4_region.py
+│   │   └── stage5_reference.py
+│   └── models.py                # 数据清洗 + 转换
+└── output/                      # 导出产物
+```
+
+#### PRD 文档
+
+`cnkgraph/docs/prd.md`：完整爬虫产品需求文档，包含技术选型对比、5 阶段爬取流程图、断点续爬状态机、并发模型、CLI 接口、容错设计、验收标准。
+
+#### 文件变更
+
+```
+新增:
+  cnkgraph/docs/prd.md                      爬虫 PRD
+  cnkgraph/postman/*.json                   API Postman 集合（12 个文件）
+
+修改:
+  docs/poem-dating-research.md              +数据库设计（25 张表 DDL + COMMENT）
+                                            +全量爬取策略（5 阶段 + 断点续爬）
+  docs/devlog.md                            +本节更新记录
+```

@@ -1,0 +1,4 @@
+*.duckdb
+*.duckdb.wal
+*.csv
+__pycache__/
