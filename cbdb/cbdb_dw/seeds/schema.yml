@@ -1,0 +1,310 @@
+version: 2
+
+seeds:
+
+  # === Stage 1: Calendar ===
+
+  - name: ods_cnkgraph_dynasty
+    description: 朝代表，来自 cnkgraph /api/calendar，记录中国历代朝代及起止年份
+    meta:
+      source: cnkgraph
+      stage: 1_calendar
+    columns:
+      - name: name
+        description: 朝代名称，如 唐朝、宋朝
+      - name: begin_year
+        description: 朝代起始年份（公元纪年）
+      - name: end_year
+        description: 朝代终止年份（公元纪年）
+
+  - name: ods_cnkgraph_era_year
+    description: 年号表，来自 cnkgraph /api/calendar/{dynasty}，记录各朝代的年号
+    meta:
+      source: cnkgraph
+      stage: 1_calendar
+    columns:
+      - name: name
+        description: 年号名称，如 开元、绍兴
+      - name: dynasty
+        description: 所属朝代
+      - name: begin_year
+        description: 年号起始年份（公元纪年）
+      - name: end_year
+        description: 年号终止年份（公元纪年）
+
+  # === Stage 2: People ===
+
+  - name: ods_cnkgraph_person
+    description: 诗人基本信息表，来自 cnkgraph /api/people/{id}，收录唐诗三百首涉及的 71 位诗人
+    meta:
+      source: cnkgraph
+      stage: 2_people
+    columns:
+      - name: id
+        description: 诗人在 cnkgraph 的唯一 ID
+      - name: name
+        description: 诗人姓名
+      - name: surname
+        description: 姓氏
+      - name: dynasty
+        description: 所属朝代
+      - name: birth_year
+        description: 出生年份
+      - name: death_year
+        description: 逝世年份
+      - name: birth_day
+        description: 出生日期
+      - name: death_day
+        description: 逝世日期
+
+  - name: ods_cnkgraph_person_alias
+    description: 诗人别名字号表，记录诗人的号、字、别称等
+    meta:
+      source: cnkgraph
+      stage: 2_people
+    columns:
+      - name: id
+        description: 自增主键
+      - name: person_id
+        description: 关联诗人 ID
+      - name: name
+        description: 别名/字号
+      - name: type
+        description: 别名类型（Hao=号, Zi=字 等）
+      - name: source
+        description: 别名来源
+
+  - name: ods_cnkgraph_person_hometown
+    description: 诗人籍贯表，记录诗人的家乡地理信息
+    meta:
+      source: cnkgraph
+      stage: 2_people
+    columns:
+      - name: id
+        description: 自增主键
+      - name: person_id
+        description: 关联诗人 ID
+      - name: region_id
+        description: 关联地理区域 ID（对应 region 表）
+      - name: name
+        description: 籍贯描述，如"婺州义乌(今浙江义乌)"
+
+  - name: ods_cnkgraph_person_detail
+    description: 诗人传记资料表，来自各类辞书典籍的人物条目
+    meta:
+      source: cnkgraph
+      stage: 2_people
+    columns:
+      - name: id
+        description: 自增主键
+      - name: person_id
+        description: 关联诗人 ID
+      - name: book
+        description: 资料来源书名，如《中国历代人名大辞典》
+      - name: content
+        description: 传记正文内容
+      - name: is_review
+        description: 是否为评述性质的内容
+
+  # === Stage 3: Writing ===
+
+  - name: ods_cnkgraph_writing
+    description: 诗文作品主表，来自 cnkgraph /api/writing，收录 71 位诗人的全部诗作
+    meta:
+      source: cnkgraph
+      stage: 3_writing
+    columns:
+      - name: id
+        description: 作品唯一 ID
+      - name: author_id
+        description: 作者 ID（关联 person 表）
+      - name: author_name
+        description: 作者姓名
+      - name: title
+        description: 作品标题
+      - name: dynasty
+        description: 所属朝代/时期
+      - name: author_date_raw
+        description: 原始创作时间描述
+      - name: author_place_raw
+        description: 原始创作地点描述
+      - name: writing_type
+        description: 体裁大类，如 Poem（诗）
+      - name: type_detail
+        description: 体裁细类，如 WuLv（五律）、QiJue（七绝）
+      - name: rhyme
+        description: 韵部
+      - name: first_clause_rhyme
+        description: 首句入韵
+      - name: rank
+        description: 排序权重
+      - name: preface
+        description: 小序/序言
+      - name: note
+        description: 注释
+
+  - name: ods_cnkgraph_writing_clause
+    description: 诗句表，拆分每首诗的逐句内容，来自 Writing.Clauses 数组
+    meta:
+      source: cnkgraph
+      stage: 3_writing
+    columns:
+      - name: id
+        description: 自增主键
+      - name: writing_id
+        description: 关联作品 ID
+      - name: idx
+        description: 句子序号（从 0 开始）
+      - name: content
+        description: 诗句正文
+      - name: rhyme_char
+        description: 押韵字
+
+  - name: ods_cnkgraph_writing_comment
+    description: 历代评注表，记录后人对作品的各种评点注释，来自 Writing.Comments 数组
+    meta:
+      source: cnkgraph
+      stage: 3_writing
+    columns:
+      - name: id
+        description: 自增主键
+      - name: writing_id
+        description: 关联作品 ID
+      - name: book
+        description: 评注来源书名
+      - name: section
+        description: 评注所在章节
+      - name: content
+        description: 评注正文
+      - name: full_path
+        description: 评注完整路径
+
+  - name: ods_cnkgraph_writing_allusion
+    description: 用典表，记录作品中使用的典故，来自 Writing.Allusions 数组
+    meta:
+      source: cnkgraph
+      stage: 3_writing
+    columns:
+      - name: id
+        description: 自增主键
+      - name: writing_id
+        description: 关联作品 ID
+      - name: allusion_index
+        description: 典故序号
+      - name: allusion_key
+        description: 典故关键词
+      - name: sentence_index
+        description: 典故所在句子索引
+
+  # === Stage 4: Region ===
+
+  - name: ods_cnkgraph_region
+    description: 地理区域表，来自 cnkgraph /api/map/region，记录古今地理区域
+    meta:
+      source: cnkgraph
+      stage: 4_region
+    columns:
+      - name: id
+        description: 区域唯一 ID（编码格式如 CN11=北京）
+      - name: name
+        description: 区域名称
+      - name: latitude
+        description: 纬度
+      - name: longitude
+        description: 经度
+      - name: parent_id
+        description: 上级区域 ID
+      - name: people_count
+        description: 关联人物数量
+      - name: has_child
+        description: 是否有下级子区域
+
+  - name: ods_cnkgraph_region_history
+    description: 区域历史沿革表，记录同一地理区域在不同时期的名称变迁
+    meta:
+      source: cnkgraph
+      stage: 4_region
+    columns:
+      - name: id
+        description: 自增主键
+      - name: region_id
+        description: 关联当前区域 ID
+      - name: history_id
+        description: 历史区域 ID
+      - name: name
+        description: 历史名称
+      - name: new_name
+        description: 现代名称
+      - name: type
+        description: 行政区类型（郡、州、府等）
+      - name: begin_year
+        description: 该名称起始年份
+      - name: end_year
+        description: 该名称终止年份
+      - name: begin_reason
+        description: 名称变更原因
+      - name: end_reason
+        description: 名称废止原因
+      - name: belong_to
+        description: 上级行政归属
+      - name: external_id
+        description: 外部关联 ID
+      - name: latitude
+        description: 纬度
+      - name: longitude
+        description: 经度
+
+  # === Stage 5: Reference ===
+
+  - name: ods_cnkgraph_rhyme_entry
+    description: 韵部表，来自 cnkgraph /api/rhyme/{book}，收录平水韵 106 韵部
+    meta:
+      source: cnkgraph
+      stage: 5_reference
+    columns:
+      - name: id
+        description: 自增主键
+      - name: book
+        description: 韵书名称，如"平水韵"
+      - name: name
+        description: 韵部名称，如"一东"、"二冬"
+      - name: chars
+        description: 该韵部收录的字
+
+  - name: ods_cnkgraph_ci_tune
+    description: 词牌表，来自 cnkgraph /api/ciTune，收录历代词牌名及其别名、说明
+    meta:
+      source: cnkgraph
+      stage: 5_reference
+    columns:
+      - name: id
+        description: 词牌唯一 ID
+      - name: name
+        description: 词牌名称
+      - name: type
+        description: 词牌类型（Ping=平, Ze=仄）
+      - name: aliases
+        description: 别名列表（| 分隔）
+      - name: description
+        description: 词牌说明
+      - name: writing_count
+        description: 关联词作数量
+
+  - name: ods_cnkgraph_qu_tune
+    description: 曲牌表，来自 cnkgraph /api/quTune，收录历代曲牌名及其路径
+    meta:
+      source: cnkgraph
+      stage: 5_reference
+    columns:
+      - name: id
+        description: 曲牌唯一 ID
+      - name: name
+        description: 曲牌名称
+      - name: path
+        description: 曲牌路径，如"北曲/黃鍾宮"
+      - name: aliases
+        description: 别名列表（| 分隔）
+      - name: name_comment
+        description: 名称注释
+      - name: writing_count
+        description: 关联曲作数量
