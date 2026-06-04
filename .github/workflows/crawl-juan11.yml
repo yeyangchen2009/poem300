@@ -1,0 +1,50 @@
+name: Crawl cnkgraph (卷11 非唐诗人)
+
+on:
+  workflow_dispatch:
+    inputs:
+      skip_stages:
+        description: 'Stages to skip (e.g. "2" or "2,3")'
+        required: false
+        default: ''
+      concurrency:
+        description: 'Concurrency (default 1)'
+        required: false
+        default: '1'
+
+jobs:
+  crawl:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        working-directory: cnkgraph
+        run: pip install -r requirements.txt
+
+      - name: Run crawler
+        working-directory: cnkgraph
+        run: |
+          ARGS=""
+          if [ -n "${{ inputs.skip_stages }}" ]; then
+            for s in $(echo "${{ inputs.skip_stages }}" | tr ',' ' '); do
+              ARGS="$ARGS --skip-stage $s"
+            done
+          fi
+          python src/crawl-juan11.py --concurrency ${{ inputs.concurrency }} $ARGS
+
+      - name: Export to CSV
+        working-directory: cnkgraph
+        run: python src/export-csv.py
+
+      - name: Upload CSV data
+        uses: actions/upload-artifact@v4
+        with:
+          name: cnkgraph-juan11-csv
+          path: cnkgraph/data/csv/*.csv
+          retention-days: 30
