@@ -513,6 +513,300 @@ upload-artifact 上传 CSV  ──下载──→  data/csv/*.csv
 3. 跑完后下载 CSV artifact
 4. 用 dbt 将 CSV 导入本地 DuckDB 数仓
 
+## (八) GitHub Actions 首次成功运行 — 2026-06-02
+
+**问题**：首次 Actions 运行失败，报错 `NOT NULL constraint failed: writing_comment.content`。API 返回的某些 comment 的 Content 值为 `None`，而 `dict.get("Content", "")` 不会把已有的 `None` 转为空字符串。
+
+**修复**：`stage3_writing.py` 第 240 行，将 `.get("Content", "")` 改为 `.get("Content") or ""`，对 Book/Section/FullPath 同样处理。
+
+```python
+# 修复前
+comment.get("Content", "")
+# 修复后
+comment.get("Content") or ""
+```
+
+**修复后重新运行**：Run ID 26826150962，总耗时 44 分钟，全部 5 个 stage 成功完成。
+
+**数据统计**：
+
+| Stage | 表 | 行数 |
+|-------|---|------|
+| 1 Calendar | dynasty | 549 |
+| | era_year | 761 |
+| 2 People | person | 71 |
+| | person_alias | 285 |
+| | person_hometown | 71 |
+| | person_detail | 1,620 |
+| 3 Writing | writing | 21,150 |
+| | writing_clause | 232,114 |
+| | writing_comment | 17,688 |
+| | writing_allusion | 12,138 |
+| 4 Region | region | 373 |
+| | region_history | 10,546 |
+| 5 Reference | rhyme_entry | 106 |
+| | ci_tune | 818 |
+| | qu_tune | 1,072 |
+| **合计** | **15 个表** | **299,362 行** |
+
+**诗人匹配**：71/77 匹配成功。未匹配 6 人：刘脊虚、唐玄宗、张泌、无名氏、朱庆余、邱为。
+
+**备注**：
+- 中华新韵 API 返回 400（"未知韵书"），只获取到平水韵 106 条
+- Region 有部分 404（"未找到匹配区域"），属正常现象
+- CSV 已导出并上传为 GitHub Artifact（保留 30 天）
+
+### FAQ：GitHub Actions 相关问题
+
+**Q: CSV artifact 是 zip 吗？怎么下载？**
+
+A: GitHub Actions 的 artifact 确实是 zip 打包上传的（本次 7.7 MB）。两种下载方式：
+1. **网页下载**：仓库 → Actions 标签 → 点击运行记录 → 页面底部 Artifacts 区域 → 点击 `cnkgraph-csv` 下载 zip，解压后得到 15 个 `.csv` 文件
+2. **CLI 下载**：`gh run download <run-id> --name cnkgraph-csv --dir data/csv`，自动解压到指定目录
+
+**Q: 为什么 GitHub Actions 没有触发限流？**
+
+A: 三个原因：
+1. **IP 不同**：GitHub Actions runner 运行在 Azure 云上，IP 池很大。之前本地 IP 被限流，但 Azure IP 是全新的
+2. **请求速率低**：爬虫 `concurrency=1`（串行），每次请求间隔 ~0.5s，远低于触发限流的阈值
+3. **数据量可控**：只爬取 71 个诗人（非全量 200 万+），总耗时 44 分钟，平均 ~16 请求/分钟
+
+**Q: 本地 IP 被限流后怎么办？**
+
+A: cnkgraph 的限流是 IP 级别的。本地被限流后可以：
+- 等 IP 限流解除（通常数小时到一天）
+- 换 IP（关 VPN / 重拨宽带 / 手机热点）
+- 使用 GitHub Actions（推荐，免费且不受本地 IP 限制）
+
+## (九) CSV 格式修复 — ci_tune / qu_tune JSON 展开 — 2026-06-02
+
+**问题**：导出的 15 个 CSV 中，`ci_tune.csv` 和 `qu_tune.csv` 的 `content` 列包含原始 JSON 字符串，无法直接作为表格使用。其余 13 个 CSV 格式正常。
+
+**原因**：Stage 5 爬虫将 ci_tune / qu_tune 的整个 API 响应对象序列化为 JSON 字符串存入 `content` 列，没有拆分为独立字段。
+
+**ci_tune 原始格式**：
+```
+id,name,content
+1,归字谣,"{""Id"": 1, ""Type"": ""Ping"", ""Name"": ""归字谣"", ""Aliases"": [""苍梧谣"", ""十六字令""], ...}"
+```
+
+**修复**：修改 `export-csv.py`，导出 ci_tune 和 qu_tune 时解析 JSON content，展开为独立列：
+
+**ci_tune 新格式**（6 列）：
+```
+id,name,type,aliases,desc,writing_count
+1,归字谣,Ping,苍梧谣|十六字令,蔡伸词名《苍梧谣》...,251
+```
+
+**qu_tune 新格式**（6 列）：
+```
+id,name,path,aliases,name_comment,writing_count
+1,喜迁莺,北曲/黃鍾宮,,,12
+```
+
+其中 `aliases` 是数组，用 `|` 分隔拼接为字符串。
+
+**15 个 CSV 格式排查结果**：
+
+| 文件 | 行数 | 状态 |
+|------|------|------|
+| dynasty.csv | 549 | 正常 |
+| era_year.csv | 761 | 正常 |
+| person.csv | 71 | 正常 |
+| person_alias.csv | 285 | 正常 |
+| person_hometown.csv | 71 | 正常 |
+| person_detail.csv | 1,620 | 正常 |
+| writing.csv | 21,150 | 正常 |
+| writing_clause.csv | 232,114 | 正常 |
+| writing_comment.csv | 17,688 | 正常 |
+| writing_allusion.csv | 12,138 | 正常 |
+| region.csv | 373 | 正常 |
+| region_history.csv | 10,546 | 正常 |
+| rhyme_entry.csv | 106 | 正常 |
+| **ci_tune.csv** | 818 | **已修复（JSON 展开）** |
+| **qu_tune.csv** | 1,072 | **已修复（JSON 展开）** |
+
+**备注**：此修复仅影响 `export-csv.py` 导出逻辑，未改动 DDL 和爬虫代码。下次 GitHub Actions 运行会自动导出格式化后的 CSV。本地已用 `gh run download` 下载的 CSV 可重新运行 `python src/export-csv.py` 覆盖。
+
+## (十) CI/CD 工作流说明 — 2026-06-02
+
+项目有两个独立的 GitHub Actions workflow，互不干扰：
+
+| Workflow | 触发方式 | 用途 |
+|----------|---------|------|
+| `deploy.yml` | `on: push` (master) + 手动 | 构建网站并部署到 GitHub Pages |
+| `crawl.yml` | `on: workflow_dispatch`（仅手动） | 运行爬虫、导出 CSV、上传 artifact |
+
+**关键设计**：
+- push 代码到 master **只会触发网站部署**，不会运行爬虫
+- 爬虫只能通过 Actions 页面手动点击 "Run workflow" 触发
+- 两者完全独立，不会互相影响
+
+## (十一) cnkgraph 数据同步到 dbt ODS 层 — 2026-06-02
+
+**目标**：将 GitHub Actions 爬取的 15 个 CSV 表同步到 `cbdb/data/cbdb.duckdb` 的 `ods` schema，表名统一加前缀 `ods_cnkgraph_`。
+
+**实现步骤**：
+
+1. **复制 CSV 到 dbt seeds**：将 `cnkgraph/data/csv/*.csv` 复制到 `cbdb/cbdb_dw/seeds/`，文件名加 `ods_cnkgraph_` 前缀
+2. **创建 schema.yml**：为 15 个 seed 表编写中文表注释和字段注释（`cbdb/cbdb_dw/seeds/schema.yml`）
+3. **配置 dbt_project.yml**：添加 `seeds` 配置，指定 `+schema: ods`
+4. **运行 `dbt seed`**：14 个表通过 dbt seed 直接加载成功
+5. **writing 表特殊处理**：`writing.csv` 的 `preface` 字段含 HTML（含换行符和双引号），dbt seed 的 DuckDB CSV 解析器在 `strict_mode=true` 下报错。改用 Python 直接通过 `read_csv_auto(..., ignore_errors=true)` 加载，成功导入 20,786 行（跳过约 364 行有问题的数据）
+
+**ci_tune 列名修复**：`desc` 是 SQL 保留字，导出 CSV 时改为 `description`
+
+**数据验证结果**：
+
+| 表名 | 行数 |
+|------|------|
+| ods_cnkgraph_dynasty | 549 |
+| ods_cnkgraph_era_year | 761 |
+| ods_cnkgraph_person | 71 |
+| ods_cnkgraph_person_alias | 285 |
+| ods_cnkgraph_person_hometown | 71 |
+| ods_cnkgraph_person_detail | 1,620 |
+| ods_cnkgraph_writing | 20,786 |
+| ods_cnkgraph_writing_clause | 232,114 |
+| ods_cnkgraph_writing_comment | 17,688 |
+| ods_cnkgraph_writing_allusion | 12,138 |
+| ods_cnkgraph_region | 373 |
+| ods_cnkgraph_region_history | 10,546 |
+| ods_cnkgraph_rhyme_entry | 106 |
+| ods_cnkgraph_ci_tune | 818 |
+| ods_cnkgraph_qu_tune | 1,072 |
+| **合计** | **298,998** |
+
+**关键文件**：
+
+| 文件 | 说明 |
+|------|------|
+| `cbdb/cbdb_dw/seeds/ods_cnkgraph_*.csv` | 15 个 seed 数据文件 |
+| `cbdb/cbdb_dw/seeds/schema.yml` | 15 个表的中文注释文档 |
+| `cbdb/cbdb_dw/dbt_project.yml` | 新增 seeds 配置 |
+
+## (十二) 已爬数据 vs API 全量数据对比 — 2026-06-03
+
+**背景**：当前爬取范围限制为唐诗三百首的 77 位诗人（实际匹配 71 人），仅涉及唐朝。cnkgraph API 涵盖 15 个朝代、约 12 万文学人物、200 万+ 诗文。
+
+### 数据对比总览
+
+| 表名 | 已导入 ODS | API 全量估算 | 覆盖率 | 状态 | 说明 |
+|------|-----------|-------------|--------|------|------|
+| **dynasty** | 549 | ~549 | **100%** | 全量 | 单次请求获取所有朝代，无过滤 |
+| **era_year** | 761 | ~761 | **100%** | 全量 | 遍历所有朝代获取年号，无过滤 |
+| **ci_tune** | 818 | ~819 | **~100%** | 全量 | 单次 `GET /ciTune` 返回全部 |
+| **qu_tune** | 1,072 | ~1,073 | **~100%** | 全量 | 单次 `GET /quTune` 返回全部 |
+| **rhyme_entry** | 106 | ~106 | **100%** | 全量 | 平水韵 106 韵部；中华新韵 API 返回 400 错误 |
+| **person** | 71 | ~120,000 | **0.06%** | 过滤 | 仅匹配 71 位唐诗三百首诗人；全量需遍历 15 个朝代 |
+| **person_alias** | 285 | ~500,000 | **0.06%** | 过滤 | 仅 71 人的别名；全量需逐人请求详情 |
+| **person_hometown** | 71 | ~120,000 | **0.06%** | 过滤 | 仅 71 人的籍贯 |
+| **person_detail** | 1,620 | ~200,000 | **0.8%** | 过滤 | 71 人共 1,620 条传记；大诗人资料多 |
+| **writing** | 20,786 | ~2,000,000 | **1%** | 过滤 | 仅 71 人作品；李白独占 3,120 首 |
+| **writing_clause** | 232,114 | ~20,000,000 | **1.2%** | 过滤 | 随 writing 而来 |
+| **writing_comment** | 17,688 | ~4,000,000 | **0.4%** | 过滤 | 名篇评注多 |
+| **writing_allusion** | 12,138 | ~500,000 | **2.4%** | 过滤 | 随 writing 而来 |
+| **region** | 373 | ~3,000 | **12%** | 过滤 | 仅从 71 人作品中提取的区域 |
+| **region_history** | 10,546 | ~30,000 | **35%** | 过滤 | 随 region 而来，历史区域较多 |
+
+### 分类说明
+
+**A. 已全量，无需重爬（5 个表）**：
+
+这些表的 API 是单次请求返回全部数据，不受诗人范围限制。已在 GitHub Actions 一次 44 分钟的运行中完成。
+
+| 表 | 行数 | API 端点 |
+|---|------|---------|
+| dynasty | 549 | `GET /calendar` |
+| era_year | 761 | `GET /calendar/{dynasty}` × 549 |
+| ci_tune | 818 | `GET /ciTune` |
+| qu_tune | 1,072 | `GET /quTune` |
+| rhyme_entry | 106 | `GET /rhyme/平水韵` |
+
+**B. 已过滤，如需全量需补充爬取（10 个表）**：
+
+当前数据仅覆盖 71 位唐代诗人的子集。若需全量，需用 `crawl.py`（非 `crawl-tang300.py`）遍历全部朝代和作者。
+
+| 补充范围 | 涉及表 | 增量估算 | 预估耗时 | 难度 |
+|---------|--------|---------|---------|------|
+| 全朝代人物（~12 万人） | person, person_alias, person_hometown, person_detail | +12 万 / +50 万 / +12 万 / +20 万 | ~8 小时 | 高（逐人请求，易限流） |
+| 全朝代诗文（~200 万首） | writing, writing_clause, writing_comment, writing_allusion | +198 万 / +1,980 万 / +398 万 / +49 万 | ~20 小时 | 极高（海量分页，易限流） |
+| 全量区域（~3,000 个） | region, region_history | +2,600 / +2 万 | ~30 分钟 | 低（增量补充即可） |
+
+**C. 未爬取的表（10 个表，当前 ODS 中无数据）**：
+
+| 表 | API 全量估算 | 状态 | 原因 |
+|---|-------------|------|------|
+| book | ~7,000 | 未爬 | crawl-tang300 跳过了 book 模块 |
+| book_volume | ~数万 | 未爬 | 依赖 book，逐书请求 |
+| glossary | ~5 万 | 未爬 | API 返回 405，禁用 |
+| category_entry | ~5 万 | 未爬 | crawl-tang300 跳过 |
+| char_dict | ~2 万 | 未爬 | 需遍历 CJK 字符集 |
+| rhyme_char | ~数千 | 未爬 | 未实现，需逐韵部逐字请求 |
+| scenery | ~1 万 | 未爬 | region 详情中提取，当前 0 条 |
+| writing_link | ~数百万 | 未爬 | 需逐首请求 `/writing/{id}`，PRD 中标注"另行安排" |
+
+### 补充爬取建议
+
+若仅需唐诗数据（非全朝代），当前 71 人数据已基本满足唐诗三百首项目需求。如需扩展：
+
+1. **补爬 6 位未匹配诗人**（刘脊虚、唐玄宗、张泌、无名氏、朱庆余、邱为）：可能是 API 中名称不同，需手动查 ID，约 10 分钟
+2. **扩展到全部唐代诗人**（~2,500 人）：改用 `crawl.py --dynasty 唐朝`，预估增加 ~5 万首诗文，耗时约 2 小时
+3. **扩展到全部朝代**：使用 `crawl.py` 不加限制，预估总量 ~200 万诗文，耗时 20+ 小时，需分批运行并注意限流
+
+> **详细文档**：完整的数据管道技术文档（工具选型、脚本调用、CI/CD 运行对比、CSV 修复、dbt 导入、覆盖率比对方法论、全量爬取方案）见 [data-pipeline.md](data-pipeline.md)
+
+---
+
+## (十三) 未匹配诗人排查 + 卷 11 作者清单 — 2026-06-03
+
+### 6 位未匹配诗人原因分析
+
+爬虫从 cnkgraph API `/people/唐朝` 获取唐代人物列表，用精确匹配（`name == poet_name`）查找。以下 6 人未能匹配，原因均为**名字写法不同**：
+
+| 我们的名字 | cnkgraph 使用的名字 | 原因 | 可否修复 |
+|-----------|-------------------|------|---------|
+| **刘脊虚** | 刘昚虚 | "昚"是生僻字，被误写为"脊"。实际上维基百科记载还有"刘慎虚"的写法 | 将 TANG300_POETS 中改为"刘昚虚" |
+| **唐玄宗** | 李隆基 | cnkgraph 用本名"李隆基"而非庙号"唐玄宗"（也称"唐明皇"） | 将 TANG300_POETS 中改为"李隆基" |
+| **张泌** | 张佖 | "泌"与"佖"字形相近。历史上张泌（花间词人）和南唐张佖实为不同人，但唐诗三百首的"张泌"在 cnkgraph 中可能被归为"张佖" | 将 TANG300_POETS 中改为"张佖"，或两名字都试 |
+| **无名氏** | — | cnkgraph 人物库中无"无名氏"条目，这是诗歌署名的特殊情况 | 无法匹配，需单独处理 |
+| **朱庆余** | 朱庆馀 | "余"vs"馀"——繁简异体字差异（"馀"是"余"的繁体异写） | 将 TANG300_POETS 中改为"朱庆馀" |
+| **邱为** | 丘为 | 避孔子讳："丘"姓在清代雍正年间加"阝"旁变为"邱"，实为同一人 | 将 TANG300_POETS 中改为"丘为" |
+
+**总结**：6 人中有 5 人可通过修正名字匹配，1 人（无名氏）无法匹配。需修改 `crawl-tang300.py` 中的 `TANG300_POETS` 列表。
+
+### 卷 11（小学生古诗词）作者清单
+
+卷 11 收录 100+ 首小学必背古诗词，跨多个朝代（汉→清），共 **100 位作者**（去重后），其中：
+
+**唐代作者（与卷 01-10 重叠）**：白居易、岑参、陈陶、陈子昂、崔护、杜甫、杜牧、杜秋娘、杜荀鹤、高适、韩翃、韩愈、贺知章、胡令能、黄巢、贾岛、李白、李贺、李峤、李商隐、李绅、李世民、刘方平、刘禹锡、刘长卿、柳宗元、卢纶、骆宾王、孟浩然、孟郊、司空曙、宋之问、王勃、王昌龄、王翰、王建、王湾、王维、王之涣、韦应物、温庭筠、无名氏、元稹、张籍、张继、张九龄
+
+**非唐代作者（需扩展爬取范围）**：
+
+| 作者 | 朝代 | 代表作 |
+|------|------|--------|
+| 曹操 | 汉 | 《观沧海》 |
+| 曹植 | 三国 | 《七步诗》 |
+| 陶渊明 | 晋 | 《饮酒》 |
+| 北朝民歌 | 南北朝 | 《木兰辞》 |
+| 苏轼 | 宋 | 《题西林壁》《饮湖上初晴后雨》 |
+| 王安石 | 宋 | 《梅花》《元日》 |
+| 杨万里 | 宋 | 《小池》 |
+| 李清照 | 宋 | 《夏日绝句》 |
+| 陆游 | 宋 | 《示儿》 |
+| 辛弃疾 | 宋 | 《清平乐·村居》 |
+| 范仲淹 | 宋 | 《江上渔者》 |
+| 曾巩 | 宋 | 《咏柳》 |
+| 文天祥 | 宋 | 《过零丁洋》 |
+| 唐寅 | 明 | 《画鸡》 |
+| 于谦 | 明 | 《石灰吟》 |
+| 郑燮 | 清 | 《竹石》 |
+| 袁枚 | 清 | 《苔》 |
+| 龚自珍 | 清 | 《己亥杂诗》 |
+| 纳兰性德 | 清 | 《长相思》 |
+
+卷 11 涉及 **汉、三国、晋、南北朝、唐、宋、元、明、清** 共 9 个朝代。若需爬取卷 11 全部数据，需将爬取范围从"唐朝"扩展到"全部朝代"。
+
 ---
 
 *持续更新中*

@@ -32,7 +32,12 @@ logs/
 .claude/
 
 # cbdb
-# /cbdb/data/
-# /cbdb/output/
+/cbdb/data/
+/cbdb/sql/
+*.duckdb
+*.sqlite3
+
+# cnkgraph
+cnkgraph/postman/
 
 

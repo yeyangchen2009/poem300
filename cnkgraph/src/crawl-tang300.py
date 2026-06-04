@@ -1,5 +1,5 @@
 """
-Crawl only the 77 poets from 唐诗三百首 and their writings.
+Crawl only the poets from 唐诗三百首 (卷01-11) and their writings.
 Runs all 5 stages but limited to Tang dynasty and these specific poets.
 
 Usage:
@@ -17,18 +17,23 @@ sys.path.insert(0, os.path.dirname(__file__))
 from api import CnkgraphClient
 from db import get_db, get_progress_db, get_progress, upsert_progress, get_row_count, reset_progress
 
-# 77 poets from 唐诗三百首 (poet-bio.json)
+# 77 poets from 唐诗三百首 卷01-10 (poet-bio.json)
+# Note: names corrected to match cnkgraph API naming:
+#   刘脊虚→刘昚虚, 唐玄宗→李隆基, 张泌→张佖, 朱庆余→朱庆馀, 邱为→丘为
+#   无名氏: cnkgraph has no entry, excluded
 TANG300_POETS = [
-    "僧皎然", "元稹", "元结", "刘方平", "刘禹锡", "刘脊虚", "刘长卿", "卢纶",
-    "司空曙", "唐玄宗", "孟浩然", "孟郊", "宋之问", "岑参", "崔曙", "崔涂",
-    "崔颢", "常建", "张乔", "张九龄", "张旭", "张泌", "张祜", "张籍", "张继",
-    "戴叔伦", "无名氏", "朱庆余", "权德舆", "李商隐", "李白", "李益", "李端",
+    "僧皎然", "元稹", "元结", "刘方平", "刘禹锡", "刘昚虚", "刘长卿", "卢纶",
+    "司空曙", "李隆基", "孟浩然", "孟郊", "宋之问", "岑参", "崔曙", "崔涂",
+    "崔颢", "常建", "张乔", "张九龄", "张旭", "张佖", "张祜", "张籍", "张继",
+    "戴叔伦", "朱庆馀", "权德舆", "李商隐", "李白", "李益", "李端",
     "李颀", "李频", "杜审言", "杜牧", "杜甫", "杜秋娘", "杜荀鹤", "柳中庸",
     "柳宗元", "沈佺期", "温庭筠", "王之涣", "王勃", "王建", "王昌龄", "王湾",
     "王维", "王翰", "白居易", "皇甫冉", "祖咏", "秦韬玉", "綦毋潜", "薛逢",
-    "裴迪", "西鄙人", "许浑", "贺知章", "贾岛", "邱为", "郑畋", "金昌绪",
+    "裴迪", "西鄙人", "许浑", "贺知章", "贾岛", "丘为", "郑畋", "金昌绪",
     "钱起", "陈子昂", "陈陶", "韦庄", "韦应物", "韩偓", "韩愈", "韩翃",
     "顾况", "马戴", "骆宾王", "高适",
+    # 卷11 小学生古诗词 — 唐代新增（去重后）
+    "崔护", "胡令能", "黄巢", "李贺", "李峤", "李世民", "李绅",
 ]
 
 
