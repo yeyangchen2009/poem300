@@ -903,6 +903,30 @@ id,name,path,aliases,name_comment,writing_count
 - `dbt seed` 加载 14 张表成功，writing 表用 Python `ignore_errors=true` 加载
 - 详见 [卷11爬取实战文档](juan11-crawl-guide.md)
 
+### 遗留诗人
+
+- **刘昚虚**、**张佖**：两次运行均未匹配，API `/people/唐朝` 列表中找不到，可能使用了异体字
+- **北朝民歌**：cnkgraph 无条目，已排除
+- **陶渊明→陶潜**：已修正，cnkgraph 用本名
+
+### 历次运行数据备份
+
+将 Run #2（第一次成功，06-02）的 CSV 下载到 `data/csv-run2/` 保留，与当前 ODS 对比：
+
+| 表 | Run #2 | 当前 ODS | 说明 |
+|----|--------|----------|------|
+| dynasty | 549 | 549 | 一致 |
+| era_year | 761 | 761 | 一致 |
+| ci_tune | 818 | **851** | Run #4 多 33 条 |
+| qu_tune | 1,072 | 1,072 | 一致 |
+| rhyme_entry | 106 | 106 | 一致 |
+| region | 373 | 372 | 差 1 条 |
+| region_history | 10,546 | 10,453 | 差 93 条 |
+| person | 71 | **97** | 合并了非唐诗人 |
+| writing | 21,154 | **50,650** | 合并了非唐诗人 |
+
+结论：当前 ODS 使用 Run #4 的全量数据（ci_tune 更全），Run #2 备份在 `csv-run2/` 供参考。
+
 ---
 
 *持续更新中*

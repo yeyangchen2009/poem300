@@ -187,24 +187,121 @@ gh run download <RUN_ID> -n cnkgraph-csv -D cnkgraph/data/csv/
 gh run download <RUN_ID> -n cnkgraph-juan11-csv -D cnkgraph/data/csv/
 ```
 
-### Artifact 说明
+### Artifact 详解
+
+#### Artifact 是什么
+
+GitHub Artifact 是 Actions 运行产物的临时存储。爬虫运行结束后，虚拟机（runner）上的所有文件都会被销毁，只有通过 `actions/upload-artifact` 显式上传的文件才能保留下来。
+
+```mermaid
+graph TD
+    subgraph "GitHub Actions Runner（虚拟机）"
+        CRAWL["crawl-tang300.py<br/>或 crawl-juan11.py"] --> DDB["DuckDB 文件<br/>data/*.duckdb"]
+        DDB --> EXPORT["export-csv.py"]
+        EXPORT --> CSV["CSV 文件<br/>data/csv/*.csv"]
+        CSV --> UPLOAD["actions/upload-artifact@v4"]
+        DDB -.-> |"未上传<br/>随 VM 销毁"| TRASH["🗑️ 永久丢失"]
+    end
+
+    subgraph "GitHub Artifact 存储（保留 30 天）"
+        UPLOAD --> STORE["cnkgraph-csv<br/>或 cnkgraph-juan11-csv"]
+    end
+
+    subgraph "本地"
+        STORE --> |"gh run download"| LOCAL["data/csv/<br/>或 data/csv-run2/"]
+    end
+
+    style TRASH fill:#ef5350,color:#fff
+    style STORE fill:#4caf50,color:#fff
+```
+
+#### 上传了什么，没上传什么
+
+| 文件 | 是否上传 | 原因 |
+|------|----------|------|
+| `data/csv/*.csv` | **是** | 爬虫最终产出，最重要 |
+| `data/*.duckdb` | **否** | 数百 MB，且可从 CSV 重建 |
+| `data/crawl_progress.duckdb` | **否** | 爬虫进度，仅运行时有用 |
+
+#### Artifact 保留规则
+
+- **保留时间**：30 天（workflow 中 `retention-days: 30`）
+- **存储上限**：每个 artifact 最大 10 GB，仓库总量上限见 GitHub 文档
+- **过期后**：自动删除，无法恢复
+- **同 workflow 多次运行**：每次运行独立 artifact，互不影响
+
+#### 下载方式
+
+**方式一：gh CLI 下载（推荐）**
+
+```bash
+# 基本语法
+gh run download <RUN_ID> -n <artifact名称> -D <目标目录>
+
+# 实际例子
+# 下载唐朝 Run #4 的 CSV
+gh run download 26931787136 -n cnkgraph-csv -D cnkgraph/data/csv/
+
+# 下载卷11 Run #1 的 CSV
+gh run download 26960711629 -n cnkgraph-juan11-csv -D cnkgraph/data/csv/
+
+# 下载唐朝 Run #2（第一次成功）的 CSV 到单独目录，避免覆盖
+gh run download 26826150962 -n cnkgraph-csv -D cnkgraph/data/csv-run2/
+```
+
+注意事项：
+- `-n` 指定 artifact 名称，必须与 workflow 中 `upload-artifact` 的 `name` 一致
+- `-D` 指定下载目录，**目录内已有同名文件会报错**，需先 `rm -f *.csv`
+- **一次下载整个 artifact 的所有文件**，不能只挑某几个 CSV
+- 下载后是原始 CSV 文件，不是压缩包
+
+**方式二：浏览器下载**
+
+1. 打开 `https://github.com/<owner>/<repo>/actions/runs/<RUN_ID>`
+2. 页面底部 **Artifacts** 区域 → 点击 artifact 名称
+3. 浏览器下载一个 **.zip 文件**，内含所有 CSV
+4. 手动解压到目标目录
 
 ```mermaid
 graph LR
-    CRAWL["爬虫运行"] --> EXPORT["export-csv.py"]
-    EXPORT --> UPLOAD["actions/upload-artifact@v4"]
-    UPLOAD --> ARTIFACT["GitHub Artifact<br/>cnkgraph-csv / cnkgraph-juan11-csv"]
-    ARTIFACT --> |"gh run download"| LOCAL["本地 data/csv/"]
+    RUN["GitHub Actions Run<br/>RUN_ID: 26826150962"] --> ARTIFACT["Artifact<br/>cnkgraph-csv"]
+    ARTIFACT --> |"gh run download<br/>-D csv-run2/"| CLI["本地 CSV 文件<br/>15 个 .csv"]
+    ARTIFACT --> |"浏览器点击"| ZIP["下载 .zip<br/>手动解压"]
+    CLI --> SAME["内容完全一样"]
+    ZIP --> SAME
 ```
 
-**Artifact 格式**：上传的是 **原始 CSV 文件**（非压缩包）。GitHub 在存储时会自动压缩，下载时自动解压到指定目录。
+#### 如何找到 RUN_ID
 
-- **下载方式**：
-  1. `gh run download <RUN_ID> -n <artifact-name> -D <dir>` — CLI 下载
-  2. GitHub Actions 页面 → Artifacts 区域 → 点击下载（浏览器下载 .zip）
-- **保留时间**：30 天（`retention-days: 30`）
-- **是否包含 DuckDB**：**不包含**。DuckDB 是爬虫运行时临时创建的，运行结束后随虚拟机销毁。只有 CSV 被上传为 artifact。
-- **如果需要 DuckDB**：可以在 workflow 中增加 `actions/upload-artifact` 步骤上传 `.duckdb` 文件，但文件较大（数百 MB），不建议常规使用。
+```bash
+# 列出某 workflow 的所有运行
+gh run list --workflow=crawl.yml --limit=10
+
+# 输出示例：
+# completed  success  2026-06-04  26931787136  ← RUN_ID
+# completed  success  2026-06-04  26931549927
+# completed  success  2026-06-02  26826150962  ← 第一次成功
+
+# 查看某次运行的详情（含 artifact 名称）
+gh run view 26826150962
+# 输出中 ARTIFACTS 部分会显示 artifact 名称
+```
+
+#### 如何只下载全量表（不包含 writing 等大表）
+
+`gh run download` **不支持下载部分文件**。但可以用其他方式：
+
+```bash
+# 方法1：下载全部到临时目录，只拷贝需要的文件
+gh run download 26826150962 -n cnkgraph-csv -D /tmp/csv-all/
+cp /tmp/csv-all/dynasty.csv /tmp/csv-all/era_year.csv /tmp/csv-all/rhyme_entry.csv \
+   /tmp/csv-all/ci_tune.csv /tmp/csv-all/qu_tune.csv /tmp/csv-all/region.csv \
+   /tmp/csv-all/region_history.csv cnkgraph/data/csv-full/
+
+# 方法2：用 GitHub API 单文件下载（更复杂，不推荐）
+```
+
+实际上，我们当前 ODS seeds 中的 7 张全量表已经是最新的（来自 Run #4），无需再从 Run #2 下载。Run #2 备份在 `data/csv-run2/` 供对比参考。
 
 ### 监控和核对流程
 
