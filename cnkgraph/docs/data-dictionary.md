@@ -612,6 +612,48 @@ graph LR
 | 工具 | 5 | 繁简转换、笺注、出处分析 | 实时 API，不适合批量爬取 |
 | 字典 | 1 | 单字查询 | 可选 |
 
+**验证结果（2026-06-05）**：上述 5 个集合共 24 个端点全部返回**微信登录页面**（`text/html`），需要微信授权认证才能访问，属于**非公开 API**。
+
+```mermaid
+graph LR
+    subgraph "公开 API（已爬取 ✅）"
+        CAL["年历"]
+        PPL["人物"]
+        WRT["诗文库"]
+        GEO["地理"]
+        CIP["词谱"]
+        QUP["曲谱"]
+        RHY["韵典"]
+    end
+
+    subgraph "需认证 API（未爬取 🔒）"
+        GLS["词汇典故"]
+        BOK["古籍库"]
+        CAT["类书"]
+        TL["工具"]
+        CHR["字典"]
+    end
+
+    GLS --> |"返回微信登录页"| LOCK["🔒 需微信授权"]
+    BOK --> LOCK
+    CAT --> LOCK
+    TL --> LOCK
+    CHR --> LOCK
+
+    style CAL fill:#4caf50,color:#fff
+    style PPL fill:#4caf50,color:#fff
+    style WRT fill:#4caf50,color:#fff
+    style GEO fill:#4caf50,color:#fff
+    style CIP fill:#4caf50,color:#fff
+    style QUP fill:#4caf50,color:#fff
+    style RHY fill:#4caf50,color:#fff
+    style GLS fill:#ef5350,color:#fff
+    style BOK fill:#ef5350,color:#fff
+    style CAT fill:#ef5350,color:#fff
+    style TL fill:#ef5350,color:#fff
+    style CHR fill:#ef5350,color:#fff
+```
+
 ### 汇总
 
 | 维度 | 数量 |
