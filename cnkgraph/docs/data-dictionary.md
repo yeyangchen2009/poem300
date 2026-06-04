@@ -370,7 +370,262 @@ id,region_id,name,new_name,type,begin_year,end_year
 
 ***
 
-## 7. 数据特征总结
+## 7. API 端点与 ODS 表对应关系
+
+cnkgraph 提供了 12 个 Postman 集合共 **59 个 API 端点**，我们的爬虫使用了其中 **12 个端点**，产出 **15 张 ODS 表**。
+
+### 总览
+
+```mermaid
+graph LR
+    subgraph "cnkgraph API（12 个集合 / 59 个端点）"
+        CAL["年历<br/>7 个端点"]
+        PPL["人物<br/>6 个端点"]
+        WRT["诗文库<br/>13 个端点"]
+        GEO["地理<br/>7 个端点"]
+        CIP["词谱<br/>5 个端点"]
+        QUP["曲谱<br/>4 个端点"]
+        RHY["韵典<br/>5 个端点"]
+        GLS["词汇典故<br/>5 个端点"]
+        BOK["古籍库<br/>7 个端点"]
+        CAT["类书<br/>6 个端点"]
+        TL["工具<br/>5 个端点"]
+        CHR["字典<br/>1 个端点"]
+    end
+
+    subgraph "ODS（15 张表 / 12 个端点）"
+        T1["dynasty<br/>era_year"]
+        T2["person<br/>person_alias<br/>person_detail<br/>person_hometown"]
+        T3["writing<br/>writing_clause<br/>writing_comment<br/>writing_allusion"]
+        T4["region<br/>region_history"]
+        T5["rhyme_entry<br/>ci_tune<br/>qu_tune"]
+    end
+
+    CAL --> |"/api/calendar<br/>/api/calendar/{dynasty}"| T1
+    PPL --> |"/api/people/{dynasty}<br/>/api/people/{id}"| T2
+    WRT --> |"/api/writing/{dynasty}/<br/>{name}/{id}/Poem"| T3
+    GEO --> |"/api/map/region<br/>/api/map/region/{id}"| T4
+    CIP --> |"/api/ciTune"| T5
+    QUP --> |"/api/quTune"| T5
+    RHY --> |"/api/rhyme/{book}"| T5
+
+    style GLS fill:#eee,color:#999
+    style BOK fill:#eee,color:#999
+    style CAT fill:#eee,color:#999
+    style TL fill:#eee,color:#999
+    style CHR fill:#eee,color:#999
+```
+
+灰色节点 = **未爬取的 API 集合**（词汇典故、古籍库、类书、工具、字典）。
+
+### 逐表对应
+
+#### 年历域 → dynasty + era_year
+
+| ODS 表 | API 端点 | 方法 | 说明 |
+|--------|----------|------|------|
+| dynasty | `/api/calendar` | GET | 返回所有朝代列表 |
+| era_year | `/api/calendar/{dynasty}` | GET | 返回某朝代所有年号 |
+
+**API 字段 → ODS 字段映射**：
+
+```
+/api/calendar 响应:
+  Dynasties[].Name        → dynasty.name
+  Dynasties[].BeginYear   → dynasty.begin_year
+  Dynasties[].EndYear     → dynasty.end_year
+
+/api/calendar/{dynasty} 响应:
+  EraYears[].Name         → era_year.name
+  EraYears[].Dynasty      → era_year.dynasty
+  EraYears[].BeginYear    → era_year.begin_year
+  EraYears[].EndYear      → era_year.end_year
+```
+
+**Postman 集合**：`年历.postman_collection.json`（7 个端点，我们用了 2 个）
+
+未使用的端点：`/api/calendar/eraYear/{id}`、`/api/calendar/date/{date}`、`/api/calendar/GanZhi/{ganzhi}`、`/api/calendar/date/{date}/links`。
+
+#### 人物域 → person + 3 张子表
+
+| ODS 表 | API 端点 | 方法 | 说明 |
+|--------|----------|------|------|
+| person | `/api/people/{dynasty}` | GET | 获取诗人列表（含 ID） |
+| person + 子表 | `/api/people/{id}` | GET | 获取诗人详情（含别名、籍贯、传记） |
+
+**API 字段 → ODS 字段映射**：
+
+```
+/api/people/{dynasty} 响应:
+  People[].Id    → person.id（用于后续详情请求）
+  People[].Name  → person.name（用于匹配诗人名单）
+
+/api/people/{id} 响应:
+  Person.Id             → person.id
+  Person.Name           → person.name
+  Person.Surname        → person.surname
+  Profile.BirthYear     → person.birth_year
+  Profile.DeathYear     → person.death_year
+  Profile.BirthDay      → person.birth_day
+  Profile.DeathDay      → person.death_day
+  Profile.Aliases[]     → person_alias（多条）
+    .Name               → person_alias.name
+    .Type               → person_alias.type
+    .Source             → person_alias.source
+  Profile.Hometown[]    → person_hometown（多条）
+    .RegionId           → person_hometown.region_id
+    .Name               → person_hometown.name
+  Person.Details[]      → person_detail（多条）
+    .Book               → person_detail.book
+    .Content            → person_detail.content
+    .IsReview           → person_detail.is_review
+```
+
+**Postman 集合**：`人物.postman_collection.json`（6 个端点，我们用了 2 个）
+
+未使用的端点：`/api/people`（总览）、`POST /api/people/find`（按籍贯/姓氏/谥号搜索）。
+
+#### 作品域 → writing + 3 张子表
+
+| ODS 表 | API 端点 | 方法 | 说明 |
+|--------|----------|------|------|
+| writing + 子表 | `/api/writing/{dynasty}/{name}/{id}/Poem?pageNo=N` | GET | 分页获取某诗人全部诗作 |
+
+**API 字段 → ODS 字段映射**：
+
+```
+/api/writing/{dynasty}/{name}/{id}/Poem 响应:
+  Writings[].Id              → writing.id
+  Writings[].AuthorId        → writing.author_id
+  Writings[].AuthorName      → writing.author_name
+  Writings[].Title           → writing.title
+  Writings[].Dynasty         → writing.dynasty
+  Writings[].AuthorDateRaw   → writing.author_date_raw
+  Writings[].AuthorPlaceRaw  → writing.author_place_raw
+  Writings[].WritingType     → writing.writing_type
+  Writings[].TypeDetail      → writing.type_detail
+  Writings[].Rhyme           → writing.rhyme
+  Writings[].FirstClauseRhyme→ writing.first_clause_rhyme
+  Writings[].Rank            → writing.rank
+  Writings[].Preface         → writing.preface
+  Writings[].Note            → writing.note
+  Writings[].Clauses[]       → writing_clause（多条）
+    .Idx                     → writing_clause.idx
+    .Content                 → writing_clause.content
+    .RhymeChar               → writing_clause.rhyme_char
+  Writings[].Comments[]      → writing_comment（多条）
+    .Book                    → writing_comment.book
+    .Section                 → writing_comment.section
+    .Content                 → writing_comment.content
+    .FullPath                → writing_comment.full_path
+  Writings[].Allusions[]     → writing_allusion（多条）
+    .Index                   → writing_allusion.allusion_index
+    .Key                     → writing_allusion.allusion_key
+    .SentenceIndex           → writing_allusion.sentence_index
+```
+
+**Postman 集合**：`诗文库.postman_collection.json`（13 个端点，我们用了 1 个）
+
+未使用的端点：`/api/writing/{id}`（单篇详情）、`/api/writing/couplet/{words}`（对仗搜索）、`POST /api/writing/find`（组合搜索）、`/api/writing/{id}/tones`（平仄标注）、`/api/writing/{id}/labelize`（自动笺注）等。
+
+#### 地理域 → region + region_history
+
+| ODS 表 | API 端点 | 方法 | 说明 |
+|--------|----------|------|------|
+| region | `/api/map/region` | GET | 行政区划总览 |
+| region + history | `/api/map/region/{id}` | GET | 某区域详情及历史沿革 |
+
+**API 字段 → ODS 字段映射**：
+
+```
+/api/map/region 响应:
+  Regions[].Id          → region.id
+  Regions[].Name        → region.name
+  Regions[].Latitude    → region.latitude
+  Regions[].Longitude   → region.longitude
+  Regions[].ParentId    → region.parent_id
+  Regions[].PeopleCount → region.people_count
+  Regions[].HasChild    → region.has_child
+
+/api/map/region/{id} 响应:
+  Region.Histories[]      → region_history（多条）
+    .Id                   → region_history.history_id
+    .Name                 → region_history.name
+    .NewName              → region_history.new_name
+    .Type                 → region_history.type
+    .BeginYear            → region_history.begin_year
+    .EndYear              → region_history.end_year
+    .BeginReason          → region_history.begin_reason
+    .EndReason            → region_history.end_reason
+    .BelongTo             → region_history.belong_to
+    .ExternalId           → region_history.external_id
+    .Latitude             → region_history.latitude
+    .Longitude            → region_history.longitude
+```
+
+**Postman 集合**：`地理.postman_collection.json`（7 个端点，我们用了 2 个）
+
+未使用的端点：`/api/map/region/{name}`（按名称查询）、`/api/map/scenery/{id}`（景观查询）等。
+
+#### 参考数据域 → rhyme_entry + ci_tune + qu_tune
+
+| ODS 表 | API 端点 | 方法 | 说明 |
+|--------|----------|------|------|
+| ci_tune | `/api/ciTune` | GET | 词牌总览 |
+| qu_tune | `/api/quTune` | GET | 曲牌总览 |
+| rhyme_entry | `/api/rhyme/{book}` | GET | 某韵书的韵目 |
+
+**API 字段 → ODS 字段映射**：
+
+```
+/api/ciTune 响应:
+  CiTunes[].Id            → ci_tune.id
+  CiTunes[].Name          → ci_tune.name
+  CiTunes[].Content.Type  → ci_tune.type
+  CiTunes[].Content.Aliases → ci_tune.aliases（| 分隔）
+  CiTunes[].Content.Desc  → ci_tune.desc
+  CiTunes[].Content.WritingCount → ci_tune.writing_count
+
+/api/quTune 响应:
+  QuTunes[].Id            → qu_tune.id
+  QuTunes[].Name          → qu_tune.name
+  QuTunes[].Content.Path  → qu_tune.path
+  QuTunes[].Content.Aliases → qu_tune.aliases
+  QuTunes[].Content.NameComment → qu_tune.name_comment
+  QuTunes[].Content.WritingCount → qu_tune.writing_count
+
+/api/rhyme/{book} 响应:
+  Categories[].Name       → rhyme_entry.name
+  Categories[].Chars      → rhyme_entry.chars
+  （book 为路径参数）       → rhyme_entry.book
+```
+
+**Postman 集合**：`词谱.postman_collection.json`（5 个端点用了 1 个）、`曲谱.postman_collection.json`（4 个端点用了 1 个）、`韵典.postman_collection.json`（5 个端点用了 1 个）。
+
+### 未爬取的 API 集合
+
+| Postman 集合 | 端点数 | 内容 | 是否计划爬取 |
+|-------------|--------|------|-------------|
+| 词汇、典故 | 5 | 词典、典故、佛典 | 可选 |
+| 古籍库 | 7 | 四部全书全文 | 数据量极大 |
+| 类书 | 6 | 古今图书集成等 | 可选 |
+| 工具 | 5 | 繁简转换、笺注、出处分析 | 实时 API，不适合批量爬取 |
+| 字典 | 1 | 单字查询 | 可选 |
+
+### 汇总
+
+| 维度 | 数量 |
+|------|------|
+| API 集合总数 | 12 |
+| API 端点总数 | 59 |
+| 已使用端点 | 12 |
+| 未使用端点 | 47 |
+| 产出 ODS 表 | 15 |
+| 未爬取集合 | 5（词汇典故、古籍库、类书、工具、字典） |
+
+***
+
+## 8. 数据特征总结
 
 ### 全量表 vs 过滤表
 
