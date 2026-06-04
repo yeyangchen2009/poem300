@@ -927,6 +927,16 @@ id,name,path,aliases,name_comment,writing_count
 
 结论：当前 ODS 使用 Run #4 的全量数据（ci_tune 更全），Run #2 备份在 `csv-run2/` 供参考。
 
+### 数据字典
+
+新建 [data-dictionary.md](data-dictionary.md)，包含：
+- 15 张表的 ER 关联关系 mermaid 图
+- 每张表的字段说明、类型、示例数据
+- 体裁分布（古风 12K、七绝 12K、七律 10K、五律 9K...）
+- 作品量 top 10 诗人统计
+- 全量表 vs 过滤表分类
+- 数据密度指标（人均 522 首诗、首均 10 句、36% 有评注）
+
 ---
 
 *持续更新中*
