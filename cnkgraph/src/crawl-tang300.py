@@ -38,11 +38,15 @@ TANG300_POETS = [
 
 
 async def resolve_poet_ids(client) -> dict:
-    """Get author IDs for the 77 poets from cnkgraph API."""
+    """Get author IDs for the poets from cnkgraph API."""
     print("[tang300] Resolving poet IDs...")
-    data = await client.get("/people/唐朝")
+    # The /people/唐朝 response is very large; use longer timeout
+    data = await client.get("/people/唐朝", timeout=120)
     if not data:
-        print("[tang300] Failed to fetch Tang people list.")
+        print("[tang300] First attempt failed, retrying with longer timeout...")
+        data = await client.get("/people/唐朝", timeout=180)
+    if not data:
+        print("[tang300] Failed to fetch Tang people list after 2 attempts.")
         return {}
 
     people = data.get("People", [])

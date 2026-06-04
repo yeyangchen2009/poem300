@@ -37,19 +37,20 @@ class CnkgraphClient:
         if self._session and not self._session.closed:
             await self._session.close()
 
-    async def get(self, path: str, params: dict | None = None) -> dict | list | None:
+    async def get(self, path: str, params: dict | None = None, *, timeout: int | None = None) -> dict | list | None:
         """GET request with retry, rate limiting, and error handling."""
         url = f"{BASE_URL}{path}"
         async with self.semaphore:
             await asyncio.sleep(self.delay + random.uniform(0, 0.1))
-            return await self._request_with_retry(url, params)
+            return await self._request_with_retry(url, params, timeout)
 
-    async def _request_with_retry(self, url: str, params: dict | None = None) -> dict | list | None:
+    async def _request_with_retry(self, url: str, params: dict | None = None, timeout: int | None = None) -> dict | list | None:
         last_error = None
         for attempt in range(MAX_RETRIES):
             try:
+                timeout_val = aiohttp.ClientTimeout(total=timeout or DEFAULT_TIMEOUT)
                 session = await self._get_session()
-                async with session.get(url, params=params) as resp:
+                async with session.get(url, params=params, timeout=timeout_val) as resp:
                     if resp.status == 200:
                         content_type = resp.headers.get("Content-Type", "")
                         if "json" not in content_type:
