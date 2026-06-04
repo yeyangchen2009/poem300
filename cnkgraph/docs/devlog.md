@@ -874,6 +874,35 @@ id,name,path,aliases,name_comment,writing_count
   - 可能原因：API 中使用了不同的字（如异体字、繁简差异）
   - 需要在 API 返回的全量唐朝人物列表中搜索相似名称
 
+## (十五) 卷11 非唐诗人爬取 + ODS 导入 — 2026-06-04
+
+### 新增脚本
+
+- `crawl-juan11.py`：爬取卷11中汉/三国/晋/宋/明/清 18 位非唐诗人，仅运行 stage 2+3
+- `crawl-juan11.yml`：对应 CI/CD workflow
+
+### 诗人名称修正
+
+- 陶渊明 → **陶潜**（cnkgraph 用本名，"陶渊明"是别名，字渊明）
+- 北朝民歌：排除（cnkgraph 无条目）
+
+### 本地测试 → CI/CD 对比
+
+| | 本地 | CI/CD |
+|---|---|---|
+| 匹配诗人 | 18/18 | 18/18 |
+| People | 18 poets, 73 details | 18 poets, 73 details |
+| Writings | 28,674 | 28,674 |
+| 耗时 | ~30 min | 36m51s |
+
+### 数据合并与 ODS 导入
+
+唐代（79 poets, 21,970 writings）+ 卷11（18 poets, 28,674 writings）合并后：
+
+- **97 位诗人，50,650 writings，597,369 行**
+- `dbt seed` 加载 14 张表成功，writing 表用 Python `ignore_errors=true` 加载
+- 详见 [卷11爬取实战文档](juan11-crawl-guide.md)
+
 ---
 
 *持续更新中*
