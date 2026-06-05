@@ -1,0 +1,99 @@
+name: Crawl cnkgraph (补充 API)
+
+on:
+  workflow_dispatch:
+    inputs:
+      modules:
+        description: 'Modules to run (comma-separated: dict,allusion,buddhist,book,category,char,all)'
+        required: false
+        default: 'all'
+      concurrency:
+        description: 'Concurrency (default 3)'
+        required: false
+        default: '3'
+
+jobs:
+  # Small modules run in one job sequentially
+  crawl-small:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        working-directory: cnkgraph
+        run: pip install -r requirements.txt
+
+      - name: Run allusion
+        if: ${{ contains(inputs.modules, 'allusion') || contains(inputs.modules, 'all') }}
+        working-directory: cnkgraph
+        run: python -u src/crawl-supplement.py --module allusion --concurrency ${{ inputs.concurrency }}
+
+      - name: Run buddhist
+        if: ${{ contains(inputs.modules, 'buddhist') || contains(inputs.modules, 'all') }}
+        working-directory: cnkgraph
+        run: python -u src/crawl-supplement.py --module buddhist --concurrency ${{ inputs.concurrency }}
+
+      - name: Run category
+        if: ${{ contains(inputs.modules, 'category') || contains(inputs.modules, 'all') }}
+        working-directory: cnkgraph
+        run: python -u src/crawl-supplement.py --module category --concurrency ${{ inputs.concurrency }}
+
+      - name: Run char
+        if: ${{ contains(inputs.modules, 'char') || contains(inputs.modules, 'all') }}
+        working-directory: cnkgraph
+        run: python -u src/crawl-supplement.py --module char --concurrency ${{ inputs.concurrency }}
+
+      - name: Run book
+        if: ${{ contains(inputs.modules, 'book') || contains(inputs.modules, 'all') }}
+        working-directory: cnkgraph
+        run: python -u src/crawl-supplement.py --module book --concurrency ${{ inputs.concurrency }}
+
+      - name: Upload DuckDB
+        uses: actions/upload-artifact@v4
+        with:
+          name: cnkgraph-supplement-small
+          path: cnkgraph/data/supplement.duckdb
+          retention-days: 30
+
+  # Dict is the monster (~525K entries) — split into 4 batches, run in parallel
+  crawl-dict:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    if: ${{ contains(inputs.modules, 'dict') || contains(inputs.modules, 'all') }}
+    strategy:
+      matrix:
+        batch: [1, 2, 3, 4]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        working-directory: cnkgraph
+        run: pip install -r requirements.txt
+
+      - name: Run dict batch
+        working-directory: cnkgraph
+        run: |
+          case ${{ matrix.batch }} in
+            1) python -u src/crawl-supplement.py --module dict --concurrency ${{ inputs.concurrency }} --start-id 1 --end-id 131250 ;;
+            2) python -u src/crawl-supplement.py --module dict --concurrency ${{ inputs.concurrency }} --start-id 131251 --end-id 262500 ;;
+            3) python -u src/crawl-supplement.py --module dict --concurrency ${{ inputs.concurrency }} --start-id 262501 --end-id 393750 ;;
+            4) python -u src/crawl-supplement.py --module dict --concurrency ${{ inputs.concurrency }} --start-id 393751 --end-id 525000 ;;
+          esac
+
+      - name: Upload DuckDB
+        uses: actions/upload-artifact@v4
+        with:
+          name: cnkgraph-supplement-dict-batch-${{ matrix.batch }}
+          path: cnkgraph/data/supplement.duckdb
+          retention-days: 30

@@ -42,15 +42,27 @@ class CnkgraphClient:
         url = f"{BASE_URL}{path}"
         async with self.semaphore:
             await asyncio.sleep(self.delay + random.uniform(0, 0.1))
-            return await self._request_with_retry(url, params, timeout)
+            return await self._request_with_retry("GET", url, params=params, timeout=timeout)
 
-    async def _request_with_retry(self, url: str, params: dict | None = None, timeout: int | None = None) -> dict | list | None:
+    async def post(self, path: str, body: Any = None, *, timeout: int | None = None, base_url: str | None = None) -> dict | list | None:
+        """POST request with retry, rate limiting, and error handling."""
+        url = f"{base_url or BASE_URL}{path}"
+        async with self.semaphore:
+            await asyncio.sleep(self.delay + random.uniform(0, 0.1))
+            return await self._request_with_retry("POST", url, json_body=body, timeout=timeout)
+
+    async def _request_with_retry(self, method: str, url: str, *, params: dict | None = None, json_body: Any = None, timeout: int | None = None) -> dict | list | None:
         last_error = None
         for attempt in range(MAX_RETRIES):
             try:
                 timeout_val = aiohttp.ClientTimeout(total=timeout or DEFAULT_TIMEOUT)
                 session = await self._get_session()
-                async with session.get(url, params=params, timeout=timeout_val) as resp:
+                kwargs = dict(timeout=timeout_val)
+                if method == "GET":
+                    kwargs["params"] = params
+                elif method == "POST":
+                    kwargs["json"] = json_body
+                async with session.request(method, url, **kwargs) as resp:
                     if resp.status == 200:
                         content_type = resp.headers.get("Content-Type", "")
                         if "json" not in content_type:

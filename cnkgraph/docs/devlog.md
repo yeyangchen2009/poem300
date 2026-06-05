@@ -939,4 +939,104 @@ id,name,path,aliases,name_comment,writing_count
 
 ---
 
+## (十六) "认证"API 探索 — 实为公开接口 — 2026-06-05
+
+之前在第 (十三) 节标记 5 个 API 集合（词汇典故、古籍库、类书、工具、字典，共 22 个端点）为"需要微信 OAuth 认证"。
+
+经系统排查发现：**全部为公开接口，无需任何认证**。误判原因是猜测了错误的 URL 路径而非查看 Postman 集合文件中的实际路径。
+
+详见 → [api-auth-exploration.md](api-auth-exploration.md)
+
+核心结论：
+
+| API | 正确路径 | 预估记录数 |
+|-----|---------|-----------|
+| 词典 | `/api/glossary/词典/{id}` | **~525K** 条 |
+| 典故 | `/api/glossary/典故/{id}` | **~11K** 条 |
+| 佛典 | `/api/glossary/佛典/{id}` | **~37K** 条 |
+| 古籍库 | `/api/book` | **16,221** 部 |
+| 类书 | `/api/category` | **8** 部 |
+| 字典 | `/api/char/{char}` | 数千字 |
+
+踩坑经验：**先读 Postman 源文件再测试，不要凭直觉猜测 URL**。区分 `cnkgraph.com`（前端需登录）和 `api.cnkgraph.com`（API 无需认证）。Windows 上 curl 中文编码有问题，用 Python requests 测试。
+
+---
+
+## (十七) 补充 API 爬虫开发 + 本地测试通过 — 2026-06-05
+
+### 代码改动
+
+| 文件 | 改动 |
+|------|------|
+| `src/api.py` | 新增 `post()` 方法，`_request_with_retry` 支持 GET/POST 双模式 |
+| `src/crawl-supplement.py` | **新建** — 6 模块爬虫入口，支持 `--module`、`--limit`、`--start-id`、`--end-id` |
+| `.github/workflows/crawl-supplement.yml` | **新建** — CI/CD workflow，词典分 4 批并行 |
+
+### crawl-supplement.py 模块清单
+
+| 模块 | API | 预估记录数 | 本地测试 |
+|------|-----|-----------|---------|
+| dict | `GET /api/glossary/词典/{id}` | ~525K | ✅ 5 条 |
+| allusion | `GET /api/glossary/典故/{id}` | ~11K | ✅ 3 条 |
+| buddhist | `GET /api/glossary/佛典/{id}` | ~37K | ✅ 3 条 |
+| book | `GET /api/book` + `/api/book/{id}` | 16,221 部 | ✅ 3 条 |
+| category | `GET /api/category/{name}` | 8 部类书 | ✅ 5 条 |
+| char | `GET /api/char/{char}` | ~20K 字 | ✅ 5 条 |
+
+### DuckDB 表结构（supplement.duckdb）
+
+6 张新表，与原有 ODS 表隔离：
+
+| 表 | PK | 说明 |
+|----|-----|------|
+| `supplement_glossary` | `(id, kind)` | 词典/典故/佛典，kind=1/2/3 |
+| `supplement_book` | `id` | 古籍书目 + 详情 JSON |
+| `supplement_book_volume` | `volume_id` | 古籍卷册全文（暂未爬） |
+| `supplement_category_book` | `name` | 类书目录树 |
+| `supplement_category_item` | `id` | 类书条目 |
+| `supplement_char` | `char` | 汉字字典（现代+康熙+说文） |
+
+### 踩坑
+
+- **`references` 是 DuckDB 保留字**：建表时用 `references TEXT` 报语法错误，改为 `ref_data TEXT`
+- **词典/典故/佛典 ID 冲突**：三者在 `supplement_glossary` 表中 ID 范围重叠（都从 1 开始），PK 从 `id` 改为 `(id, kind)` 复合主键
+
+### CI/CD 分批策略
+
+```
+Job 1: crawl-small（串行，~4.5h）
+  allusion → buddhist → category → char → book
+
+Job 2: crawl-dict × 4（并行，~6h/批）
+  batch 1: ID 1-131250
+  batch 2: ID 131251-262500
+  batch 3: ID 262501-393750
+  batch 4: ID 393751-525000
+```
+
+词典 ~525K 条是瓶颈，按 ID 范围拆成 4 批并行跑。concurrency=3（约 8-10 req/s），单批 ~130K 条约 6 小时，4 批并行总耗时 ~6 小时。
+
+### 用法
+
+```bash
+# 本地测试
+python src/crawl-supplement.py --module dict --limit 5
+python src/crawl-supplement.py --module allusion --limit 3
+
+# CI/CD 触发
+gh workflow run "Crawl cnkgraph (补充 API)"
+
+# 只跑指定模块
+gh workflow run "Crawl cnkgraph (补充 API)" -f modules=allusion,buddhist
+```
+
+### 待完成
+
+- [ ] 推 CI/CD 全量运行
+- [ ] 4 批词典 DuckDB 合并
+- [ ] CSV 导出 + dbt seed 导入 ODS
+- [ ] 更新数据字典
+
+---
+
 *持续更新中*

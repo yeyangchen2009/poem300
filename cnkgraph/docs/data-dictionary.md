@@ -612,11 +612,23 @@ graph LR
 | 工具 | 5 | 繁简转换、笺注、出处分析 | 实时 API，不适合批量爬取 |
 | 字典 | 1 | 单字查询 | 可选 |
 
-**验证结果（2026-06-05）**：上述 5 个集合共 24 个端点全部返回**微信登录页面**（`text/html`），需要微信授权认证才能访问，属于**非公开 API**。
+**验证结果（2026-06-05 修正）**：上述 5 个集合共 22 个端点实际为 **公开 API，无需认证**。之前误判为需要微信认证是因为使用了错误的 URL 路径。正确路径（小写）均可正常返回 JSON 数据。
+
+数据量估算（二分法探查）：
+
+| API 类型 | 端点路径 | 预估记录数 |
+|---------|---------|-----------|
+| 词典 | `/api/glossary/词典/{id}` | **~525K** 条 |
+| 典故 | `/api/glossary/典故/{id}` | **~11K** 条 |
+| 佛典 | `/api/glossary/佛典/{id}` | **~37K** 条 |
+| 古籍库 | `/api/book` | **16,221** 部（含多卷全文） |
+| 类书 | `/api/category` | **8** 部大类书 |
+| 字典 | `/api/char/{char}` | 数千汉字 |
+| 工具 | `/api/tool/*` | 实时工具，非数据 |
 
 ```mermaid
 graph LR
-    subgraph "公开 API（已爬取 ✅）"
+    subgraph "已爬取 ✅"
         CAL["年历"]
         PPL["人物"]
         WRT["诗文库"]
@@ -626,19 +638,16 @@ graph LR
         RHY["韵典"]
     end
 
-    subgraph "需认证 API（未爬取 🔒）"
-        GLS["词汇典故"]
-        BOK["古籍库"]
-        CAT["类书"]
-        TL["工具"]
-        CHR["字典"]
+    subgraph "公开但未爬取（无需认证 🟡）"
+        GLS["词汇典故<br/>~573K 条"]
+        BOK["古籍库<br/>16K 部"]
+        CAT["类书<br/>8 部"]
+        CHR["字典<br/>数K字"]
     end
 
-    GLS --> |"返回微信登录页"| LOCK["🔒 需微信授权"]
-    BOK --> LOCK
-    CAT --> LOCK
-    TL --> LOCK
-    CHR --> LOCK
+    subgraph "工具类（实时 API）"
+        TL["简繁转换<br/>笺注等"]
+    end
 
     style CAL fill:#4caf50,color:#fff
     style PPL fill:#4caf50,color:#fff
@@ -647,11 +656,11 @@ graph LR
     style CIP fill:#4caf50,color:#fff
     style QUP fill:#4caf50,color:#fff
     style RHY fill:#4caf50,color:#fff
-    style GLS fill:#ef5350,color:#fff
-    style BOK fill:#ef5350,color:#fff
-    style CAT fill:#ef5350,color:#fff
-    style TL fill:#ef5350,color:#fff
-    style CHR fill:#ef5350,color:#fff
+    style GLS fill:#f9a825,color:#000
+    style BOK fill:#f9a825,color:#000
+    style CAT fill:#f9a825,color:#000
+    style CHR fill:#f9a825,color:#000
+    style TL fill:#90a4ae,color:#fff
 ```
 
 ### 汇总
@@ -661,9 +670,9 @@ graph LR
 | API 集合总数 | 12 |
 | API 端点总数 | 59 |
 | 已使用端点 | 12 |
-| 未使用端点 | 47 |
+| 未使用端点 | 47（公开可访问，待决策是否爬取） |
 | 产出 ODS 表 | 15 |
-| 未爬取集合 | 5（词汇典故、古籍库、类书、工具、字典） |
+| 未爬取集合 | 5（词汇典故~573K、古籍库16K部、类书8部、工具、字典） |
 
 ***
 
