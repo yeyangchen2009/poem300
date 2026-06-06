@@ -1,6 +1,6 @@
 """
 Stage 1: Crawl calendar data (dynasty + era_year).
-DB: data/calendar.duckdb
+DB: data/cnkgraph.duckdb (unified)
 
 API endpoints:
   GET /api/calendar            → { Dynasties: [{Name, BeginYear, EndYear, SubDynasties}] }
@@ -28,7 +28,7 @@ def _parse_year(val) -> int | None:
 async def run(client, limit: int = 0):
     """Crawl all dynasty and era_year data."""
     pcon = get_progress_db()
-    con = get_db(1)
+    con = get_db()
 
     try:
         progress = get_progress(pcon, "calendar")

@@ -1,6 +1,6 @@
 """
 Stage 4: Crawl region data (region + region_history + scenery).
-DB: data/region.duckdb
+DB: data/cnkgraph.duckdb (unified)
 """
 
 from db import get_db, get_progress_db, get_progress, upsert_progress, get_row_count, reset_progress
@@ -8,7 +8,7 @@ from db import get_db, get_progress_db, get_progress, upsert_progress, get_row_c
 
 async def run(client, reset: bool = False, limit: int = 0):
     pcon = get_progress_db()
-    con = get_db(4)
+    con = get_db()
 
     try:
         progress = get_progress(pcon, "region")
@@ -20,29 +20,16 @@ async def run(client, reset: bool = False, limit: int = 0):
 
         region_ids = set()
 
-        # Collect from writing DB
-        try:
-            import duckdb
-            wcon = duckdb.connect(f"data/writing.duckdb", read_only=True)
-            rows = wcon.execute("SELECT DISTINCT author_place_raw FROM writing WHERE author_place_raw IS NOT NULL").fetchall()
-            wcon.close()
-            for r in rows:
-                if r[0] and r[0].startswith("CN"):
-                    region_ids.add(r[0])
-        except Exception:
-            pass
+        # Collect region IDs from writing and person tables (same DB now)
+        rows = con.execute("SELECT DISTINCT author_place_raw FROM writing WHERE author_place_raw IS NOT NULL").fetchall()
+        for r in rows:
+            if r[0] and r[0].startswith("CN"):
+                region_ids.add(r[0])
 
-        # Collect from people DB
-        try:
-            import duckdb
-            pcon2 = duckdb.connect(f"data/people.duckdb", read_only=True)
-            rows = pcon2.execute("SELECT DISTINCT region_id FROM person_hometown WHERE region_id IS NOT NULL").fetchall()
-            pcon2.close()
-            for r in rows:
-                if r[0]:
-                    region_ids.add(r[0])
-        except Exception:
-            pass
+        rows = con.execute("SELECT DISTINCT region_id FROM person_hometown WHERE region_id IS NOT NULL").fetchall()
+        for r in rows:
+            if r[0]:
+                region_ids.add(r[0])
 
         print(f"[region] Found {len(region_ids)} unique region IDs to fetch")
         if not region_ids:

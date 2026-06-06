@@ -15,16 +15,7 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(__file__))
-from db import DATA_DIR, STAGE_DB
-
-STAGE_TABLES = {
-    1: ["dynasty", "era_year"],
-    2: ["person", "person_alias", "person_hometown", "person_detail"],
-    3: ["writing", "writing_clause", "writing_comment", "writing_link", "writing_allusion"],
-    4: ["region", "region_history", "scenery"],
-    5: ["book", "book_volume", "glossary", "rhyme_entry", "rhyme_char",
-        "ci_tune", "qu_tune", "category_entry", "char_dict"],
-}
+from db import DATA_DIR, STAGE_TABLES
 
 # ci_tune JSON fields -> flat CSV columns
 CI_TUNE_COLUMNS = ["id", "name", "type", "aliases", "desc", "writing_count"]
@@ -79,6 +70,7 @@ def _flatten_qu_tune(con, csv_path):
 
 def export_all():
     import duckdb
+    from db import get_db
 
     csv_dir = os.path.join(DATA_DIR, "csv")
     os.makedirs(csv_dir, exist_ok=True)
@@ -86,14 +78,17 @@ def export_all():
     total_files = 0
     total_rows = 0
 
-    for stage, tables in STAGE_TABLES.items():
-        db_path = os.path.join(DATA_DIR, STAGE_DB[stage])
-        if not os.path.exists(db_path):
-            print(f"[Stage {stage}] {STAGE_DB[stage]} not found, skipping")
-            continue
+    # Collect all tables across stages + supplement
+    all_tables = []
+    for stage in range(1, 6):
+        all_tables.extend(STAGE_TABLES[stage])
+    supp_tables = ["supplement_glossary", "supplement_book", "supplement_book_volume",
+                   "supplement_category_book", "supplement_category_item", "supplement_char"]
+    all_tables.extend(supp_tables)
 
-        con = duckdb.connect(db_path, read_only=True)
-        for table in tables:
+    con = get_db()
+    try:
+        for table in all_tables:
             try:
                 count = con.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
                 if count == 0:
@@ -116,6 +111,7 @@ def export_all():
                 total_rows += count
             except Exception as e:
                 print(f"  {table}: ERROR - {e}")
+    finally:
         con.close()
 
     print(f"\nExported {total_files} tables, {total_rows:,} total rows to {csv_dir}")

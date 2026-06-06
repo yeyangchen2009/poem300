@@ -1,6 +1,6 @@
 """
 CLI entry point for cnkgraph crawler.
-Each stage writes to its own .duckdb file.
+All stages write to the unified data/cnkgraph.duckdb.
 
 Usage:
     python src/crawl.py --status
@@ -18,12 +18,12 @@ import os
 
 sys.path.insert(0, os.path.dirname(__file__))
 
-from db import show_status, DATA_DIR, STAGE_DB, STAGE_NAMES
+from db import show_status, DATA_DIR, STAGE_NAMES
 from api import CnkgraphClient
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="cnkgraph 全量数据爬虫（多库架构）")
+    parser = argparse.ArgumentParser(description="cnkgraph 全量数据爬虫（统一库架构）")
     parser.add_argument("--stage", type=int, choices=[1, 2, 3, 4, 5],
                         help="爬取阶段: 1=年历, 2=人物, 3=诗文, 4=地理, 5=参考数据")
     parser.add_argument("--dynasty", type=str, default=None,
@@ -76,7 +76,7 @@ async def main():
 
     try:
         if args.stage:
-            print(f"\n>>> Stage {args.stage} ({STAGE_NAMES[args.stage]}) → {STAGE_DB[args.stage]}")
+            print(f"\n>>> Stage {args.stage} ({STAGE_NAMES[args.stage]})")
             if args.dynasty:
                 print(f"    Dynasty: {args.dynasty}")
             if args.author_id:
@@ -92,7 +92,7 @@ async def main():
         else:
             for stage in [1, 2, 3, 4, 5]:
                 print(f"\n{'='*60}")
-                print(f">>> Stage {stage} ({STAGE_NAMES[stage]}) → {STAGE_DB[stage]}")
+                print(f">>> Stage {stage} ({STAGE_NAMES[stage]})")
                 print(f"{'='*60}\n")
                 await run_stage(stage, client, args)
 

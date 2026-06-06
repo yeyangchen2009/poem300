@@ -70,7 +70,7 @@ async def crawl_people(client, id_map: dict):
     """Stage 2: crawl people details for each poet."""
     print("\n=== Stage 2: People ===")
     pcon = get_progress_db()
-    con = get_db(2)
+    con = get_db()
     try:
         progress = get_progress(pcon, "juan11_people")
         if progress and progress["status"] == "done":
@@ -134,7 +134,7 @@ async def crawl_people(client, id_map: dict):
 async def crawl_writings(client, id_map: dict):
     """Stage 3: crawl writings for each poet."""
     print("\n=== Stage 3: Writings ===")
-    con = get_db(3)
+    con = get_db()
     try:
         total_writings = 0
         for i, (name, (pid, dynasty)) in enumerate(id_map.items()):

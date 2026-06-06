@@ -1,6 +1,6 @@
 """
 Stage 3: Crawl writing data (writing + writing_clause + writing_comment + writing_allusion).
-DB: data/writing.duckdb
+DB: data/cnkgraph.duckdb (unified)
 """
 
 from db import get_db, get_progress_db, get_progress, upsert_progress, get_row_count, reset_progress, _pk_dynasty
@@ -44,7 +44,7 @@ async def _crawl_all(client, reset: bool, limit: int = 0):
 
 async def _crawl_dynasty(client, dynasty: str, reset: bool, limit: int = 0):
     pcon = get_progress_db()
-    con = get_db(3)
+    con = get_db()
 
     try:
         progress = get_progress(pcon, "writing", dynasty=dynasty)
@@ -78,21 +78,12 @@ async def _crawl_dynasty(client, dynasty: str, reset: bool, limit: int = 0):
             aid = author.get("Id")
             aname = author.get("Name", "")
             wcount = author.get("WritingCount", 0)
-            surname = author.get("Surname", "")
             if not aid:
                 continue
 
             author_progress = get_progress(pcon, "writing", dynasty=dynasty, author_id=aid)
             if author_progress and author_progress["status"] == "done" and not reset:
                 continue
-
-            # Ensure person row exists (writing DB has no FK to people DB)
-            con.execute("""
-                INSERT INTO writing (id, author_id, author_name, title)
-                VALUES (-1, ?, ?, 'placeholder') ON CONFLICT DO NOTHING
-            """, [aid, aname])
-            # Actually just insert a dummy to track, then delete
-            # Simpler: skip person insert, writing table just stores author_id + author_name
 
             writing_types = ["Poem"]
             total_pages = 0
@@ -122,7 +113,7 @@ async def _crawl_dynasty(client, dynasty: str, reset: bool, limit: int = 0):
 
 async def _crawl_author(client, dynasty: str, author_id: int, reset: bool, limit: int = 0):
     pcon = get_progress_db()
-    con = get_db(3)
+    con = get_db()
 
     try:
         progress = get_progress(pcon, "writing", dynasty=dynasty, author_id=author_id)

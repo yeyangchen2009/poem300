@@ -74,7 +74,7 @@ async def crawl_people(client, id_map: dict):
     """Stage 2: people - only our 77 poets."""
     print("\n=== Stage 2: People ===")
     pcon = get_progress_db()
-    con = get_db(2)
+    con = get_db()
     try:
         progress = get_progress(pcon, "tang300_people")
         if progress and progress["status"] == "done":
@@ -138,7 +138,7 @@ async def crawl_people(client, id_map: dict):
 async def crawl_writings(client, id_map: dict):
     """Stage 3: writings for each poet."""
     print("\n=== Stage 3: Writings ===")
-    con = get_db(3)
+    con = get_db()
     try:
         total_writings = 0
         for i, (name, pid) in enumerate(id_map.items()):
@@ -194,7 +194,7 @@ async def crawl_reference(client):
     print("\n=== Stage 5: Reference ===")
 
     # ciTune - single request
-    con = get_db(5)
+    con = get_db()
     try:
         data = await client.get("/ciTune")
         tunes = data if isinstance(data, list) else (data.get("CiTunes", []) if isinstance(data, dict) else [])
@@ -216,7 +216,7 @@ async def crawl_reference(client):
         con.close()
 
     # quTune - single request
-    con = get_db(5)
+    con = get_db()
     try:
         data = await client.get("/quTune")
         tunes = data if isinstance(data, list) else (data.get("QuTunes", []) if isinstance(data, dict) else [])
@@ -238,7 +238,7 @@ async def crawl_reference(client):
         con.close()
 
     # Rhyme - single request per book
-    con = get_db(5)
+    con = get_db()
     try:
         for book_name in ["平水韵", "中华新韵"]:
             data = await client.get(f"/rhyme/{book_name}")

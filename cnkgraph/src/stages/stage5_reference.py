@@ -1,6 +1,6 @@
 """
 Stage 5: Crawl reference data (book, glossary, rhyme, ci_tune, qu_tune, category, char_dict).
-DB: data/reference.duckdb
+DB: data/cnkgraph.duckdb (unified)
 """
 
 import json
@@ -30,7 +30,7 @@ async def run(client, module: str = None, reset: bool = False, limit: int = 0):
 
 async def _crawl_books(client, reset: bool, limit: int = 0):
     pcon = get_progress_db()
-    con = get_db(5)
+    con = get_db()
     try:
         progress = get_progress(pcon, "book")
         if progress and progress["status"] == "done" and not reset:
@@ -99,7 +99,7 @@ GLOSSARY_TYPES = []  # API returns 405, skip glossary for now
 
 async def _crawl_glossary(client, reset: bool, limit: int = 0):
     pcon = get_progress_db()
-    con = get_db(5)
+    con = get_db()
     try:
         total_fetched = 0
         for gtype in GLOSSARY_TYPES:
@@ -161,7 +161,7 @@ RHYME_BOOKS = ["平水韵", "中华新韵"]
 
 async def _crawl_rhyme(client, reset: bool, limit: int = 0):
     pcon = get_progress_db()
-    con = get_db(5)
+    con = get_db()
     try:
         for book_name in RHYME_BOOKS:
             progress = get_progress(pcon, "rhyme", dynasty=book_name)
@@ -190,7 +190,7 @@ async def _crawl_rhyme(client, reset: bool, limit: int = 0):
 
 async def _crawl_ci_tune(client, reset: bool, limit: int = 0):
     pcon = get_progress_db()
-    con = get_db(5)
+    con = get_db()
     try:
         progress = get_progress(pcon, "ciTune")
         if progress and progress["status"] == "done" and not reset:
@@ -224,7 +224,7 @@ async def _crawl_ci_tune(client, reset: bool, limit: int = 0):
 
 async def _crawl_qu_tune(client, reset: bool, limit: int = 0):
     pcon = get_progress_db()
-    con = get_db(5)
+    con = get_db()
     try:
         progress = get_progress(pcon, "quTune")
         if progress and progress["status"] == "done" and not reset:
@@ -256,7 +256,7 @@ async def _crawl_qu_tune(client, reset: bool, limit: int = 0):
 
 async def _crawl_category(client, reset: bool, limit: int = 0):
     pcon = get_progress_db()
-    con = get_db(5)
+    con = get_db()
     try:
         progress = get_progress(pcon, "category")
         if progress and progress["status"] == "done" and not reset:
@@ -308,7 +308,7 @@ CJK_END = 0x9FFF
 
 async def _crawl_char(client, reset: bool, limit: int = 0):
     pcon = get_progress_db()
-    con = get_db(5)
+    con = get_db()
     try:
         progress = get_progress(pcon, "char")
         if progress and progress["status"] == "done" and not reset:

@@ -1,6 +1,6 @@
 """
 Stage 2: Crawl people data (person + person_alias + person_hometown + person_detail).
-DB: data/people.duckdb
+DB: data/cnkgraph.duckdb (unified)
 """
 
 from db import get_db, get_progress_db, get_progress, upsert_progress, get_row_count, reset_progress
@@ -20,7 +20,7 @@ async def run(client, dynasty: str = None, reset: bool = False, limit: int = 0):
 
 async def _crawl_dynasty(client, dynasty: str, reset: bool, limit: int = 0):
     pcon = get_progress_db()
-    con = get_db(2)
+    con = get_db()
 
     try:
         progress = get_progress(pcon, "people", dynasty=dynasty)

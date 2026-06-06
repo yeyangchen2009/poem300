@@ -1037,6 +1037,153 @@ gh workflow run "Crawl cnkgraph (补充 API)" -f modules=allusion,buddhist
 - [ ] CSV 导出 + dbt seed 导入 ODS
 - [ ] 更新数据字典
 
+## (十八) API 全量 ER 图 + 12 集合关联分析 — 2026-06-05
+
+### 新文档
+
+[`docs/api-er-diagram.md`](api-er-diagram.md) — 完整绘制 cnkgraph 12 个 Postman 集合的 ER 关系图。
+
+### 内容概要
+
+| 章节 | 内容 |
+|------|------|
+| 1. 总览 ER 图 | 一张 mermaid erDiagram 覆盖所有 30+ 数据实体 |
+| 2. 跨集合关联与断裂点 | 9 个已识别的关联断裂（如年号→干支、用典→典故词条） |
+| 3. 逐集合详细 ER 图 | 12 个集合各一张图 + 端点清单 + API 返回示例 |
+| 4. 爬取状态汇总 | ✅ 已爬取 / 🔄 CI/CD 中 / ❌ 未爬取 / 🔧 实时工具 |
+| 5. 完整端点速查表 | 67 行覆盖全部 71 个 API 端点 |
+
+### 识别的关键断裂点
+
+1. **年号 → 干支年**：`era_year` 表无干支字段，需逐条调 `/api/calendar/eraYear/{name}` 详情
+2. **用典 → 典故词条**：`writing_allusion.allusion_key` 与 `glossary.Keys` 均为文本，无外键直连
+3. **词牌/曲牌 → 作品**：API 端点 `/ciTune/{id}/writings` 存在，但 `writing` 表无 `ci_tune_id`
+4. **景观 → 作品**：`scenery/{id}/links` 未爬取，地理→作品关联链断裂
+5. **韵字 → 押韵**：`writing_clause.rhyme_char` 是单字，需走 `rhyme_char` 表多跳关联
+
+### 补充：数据库设计方案（第 6 章）
+
+在 ER 图文档中新增第 6 章「数据库表设计方案」，基于全部 12 个 API 集合的返回结构设计 **35 张表**，覆盖全部实体：
+
+| 设计维度 | 当前 ODS | 新设计方案 |
+|---------|---------|-----------|
+| 数据库 | 5 个 DuckDB 文件 | 1 个 DuckDB 文件 |
+| 表数 | 15 | 35 |
+| 断裂关联 | 9 处 | 0 处 |
+| 核心修复 | — | 干支年表、用典→典故 FK、词牌→作品 FK、景观+关联表、人物→著作关联表 |
+
+新增 20 张表的关键设计：
+- `ganzhi_year` — 修复年号→干支断裂
+- `glossary_key` + `glossary_quote` + `glossary_person_link` — 拆出典故子表，精确 JOIN
+- `person_book` — 人物→古籍关联表
+- `scenery` + `scenery_link` — 景观及其关联链接
+- `writing_tone` — 平仄标注
+- `writing.ci_tune_id` / `qu_tune_id` — 词曲牌外键
+- `rhyme_char` — 韵字详情表，精确查询
+
+---
+
+## (十九) 统一数据库重构 + 按需爬取策略 — 2026-06-05
+
+**背景**：CI/CD 全量爬取（5 job × 6h）全部超时取消，0 artifact 产出。词典 525K 条按 concurrency=3 需 ~625h，远超 GitHub Actions 6h 上限。
+
+**策略变更**：
+- 全量爬取 → **11 卷按需爬取**（97 诗人、50,640 首作品实际引用的数据）
+- 数据量从 ~610K 降至 ~14,600（2.4%），拆 6 个 job 每个 ~3h
+
+### 统一数据库重构
+
+**db.py 重写**：7 个 DuckDB 文件 → 1 个 `data/cnkgraph.duckdb`
+
+| 变更 | 旧 | 新 |
+|------|----|----|
+| DB 文件数 | 7（calendar/people/writing/region/reference/progress/supplement） | 1（cnkgraph.duckdb） |
+| 表数 | 26 | 30（含 supplement_* 表） |
+| `get_db()` | `get_db(stage: int)` 按阶段编号 | `get_db()` 无参数 |
+| `get_progress_db()` | 独立 crawl_progress.duckdb | 同一库内 crawl_progress 表 |
+| 跨库查询 | stage4 手动 `duckdb.connect()` 读写 writing/people | 同一库内普通 JOIN |
+
+**更新的文件**（8 个）：
+- `src/db.py` — 统一 DDL，`get_db()` 无参数
+- `src/stages/stage1_calendar.py` — `get_db(1)` → `get_db()`
+- `src/stages/stage2_people.py` — `get_db(2)` → `get_db()`
+- `src/stages/stage3_writing.py` — `get_db(3)` → `get_db()`，去掉 dummy writing insert
+- `src/stages/stage4_region.py` — `get_db(4)` → `get_db()`，跨库查询简化为同库 JOIN
+- `src/stages/stage5_reference.py` — `get_db(5)` → `get_db()`（7 处）
+- `src/crawl-tang300.py` — `get_db(2/3/5)` → `get_db()`（6 处）
+- `src/crawl-juan11.py` — `get_db(2/3)` → `get_db()`（2 处）
+- `src/export-csv.py` — 遍历 stage DB 文件 → 单一 `get_db()`
+
+### crawl-supplement.py 重写：按需爬取
+
+**旧逻辑**：全量 ID 扫描（1-525K for dict, 1-38K for buddhist, CJK 0x4E00-0x9FFF for char）
+**新逻辑**：从已有 ODS 数据提取需求 → 精确查询 API
+
+| 模块 | 数据来源 | API 调用方式 | 预估量 |
+|------|---------|------------|--------|
+| 词典 | `writing_clause.content` 分词 | `GET /glossary/词典/{word}` | ~6,000 |
+| 典故 | `writing_allusion.allusion_key` | `POST /glossary/典故/find` | ~4,000 |
+| 佛典 | 评注/用典佛教关键词 | `POST /glossary/佛典/find` | ~300 |
+| 古籍 | `writing_comment.book` | `POST /Api/Book/Find` | ~300 |
+| 字典 | `writing_clause.content` CJK 字 | `GET /char/{char}` | ~4,000 |
+
+**去掉的模块**：`category`（类书 8 部，11 卷无引用）
+
+### 文档更新
+
+- `docs/api-er-diagram.md` 第 7 章更新为按需策略，添加数据量估算表和新的迁移路线图
+
+---
+
+## (二十) 本地试跑 + API 不稳定 — 2026-06-06
+
+### 数据迁移
+
+旧 7 库数据通过 `migrate-to-unified.py` 迁入统一库 `cnkgraph.duckdb`，290,509 行。
+
+### 本地试跑结果
+
+**char 模块**：跑通。从 writing_clause 提取 7,106 个唯一 CJK 字，已爬 985 个写入统一库。
+
+**dict 模块**：失败。`/glossary/词典/{word}` 只接受数字 ID 不接受文字，按需策略不适用，需改用全量列表 + 本地匹配。
+
+**book 模块**：失败。`writing_comment.book` 存的是评注来源名（如"胡仔《苕溪渔隐丛话》"），不是古籍名。Book Find API 搜不到。需改策略。
+
+**allusion/buddhist 模块**：依赖 writing_allusion.allusion_key，但当前 key 全为空（列表接口不返回 Allusions 字段）。
+
+**crawl-tang300.py**：
+- 第 1 次（concurrency=3）：30s 跑到 20/81 诗人、2,952 首诗后，李白/杜甫等大诗人页面反复 timeout
+- 第 2 次（concurrency=1）：`/people/唐朝` 请求 6 次重试全部失败（TransferEncodingError + ConnectionResetError），API 服务端不稳定
+
+### 当前数据资产
+
+| 表 | 行数 | 说明 |
+|----|------|------|
+| dynasty | 549 | ✅ 完整 |
+| era_year | 647 | ✅ 完整 |
+| person | 99 | tang300 诗人（81 匹配 + 旧数据） |
+| writing | 31,706 | 目标 ~50K，还差 ~19K |
+| writing_clause | 259,198 | 随 writing 增长 |
+| writing_comment | 3,730 | |
+| writing_allusion | 2,129 | key 全空，列表接口不含 key |
+| region | 17 | |
+| rhyme_entry | 106 | |
+| ci_tune / qu_tune | 99 + 99 | |
+| supplement_char | 985 | 目标 ~7,106，还差 ~6,121 |
+| writing_comment.book | 238 去重 | 评注来源名，非古籍名 |
+
+### 剩余工作
+
+| 任务 | 估算请求数 | 预估时间 (concurrency=3) |
+|------|-----------|----------------------|
+| Stage 3 补爬 ~19K 诗文 | ~946 页 | ~11 分钟 |
+| Stage 4 地理 | ~50 | <1 分钟 |
+| Supplement char 补完 | ~6,121 字 | ~68 分钟 |
+| Supplement dict/allusion/buddhist/book | 待定 | 待定 |
+| **小计（可预估部分）** | **~7,117** | **~80 分钟** |
+
+CI/CD 跑剩余部分完全可行：单个 job 80 分钟，远低于 6h 上限。GitHub Actions 网络比本地 Windows 稳定，API 超时问题可能更少。
+
 ---
 
 *持续更新中*
