@@ -166,6 +166,241 @@ graph LR
 | 8 | **词牌/曲牌 → 作品** | API 端点 `/api/ciTune/{id}/writings` 和 `/api/quTune/{id}/writings` 返回使用该曲牌的作品列表，但 `writing` 表中无 `ci_tune_id` / `qu_tune_id` 字段        | 需要通过 API 实时查询或反向匹配                          |
 | 9 | **景观 → 作品**    | `/api/map/scenery/{id}/{name}/links` 返回与景观相关的作品链接，但本地无此数据                                                                           | 地理-作品的关联链断裂                                 |
 
+### 2.3 API 响应模式：后端如何拼装 JSON
+
+cnkgraph 的所有 detail 端点遵循同一套设计：**后端将多张规范化表 JOIN 成一棵嵌套 JSON 树**，一次请求返回主表 + 所有 1:N 子表。爬虫拿到这棵 JSON 树后，再拆回多张表存储。
+
+#### 两种端点角色
+
+```mermaid
+graph LR
+    subgraph "List 端点（摘要）"
+        L1["GET /people/{dynasty}"]
+        L2["GET /writing/.../pageNo=N"]
+        L3["GET /map/region"]
+    end
+    subgraph "Detail 端点（完整拼装）"
+        D1["GET /people/{id}<br/>→ JOIN person+alias+hometown+detail"]
+        D2["GET /writing/{id}<br/>→ JOIN writing+clause+comment+allusion"]
+        D3["GET /map/region/{id}<br/>→ JOIN region+history"]
+    end
+
+    L1 -->|"返回摘要<br/>{Id, Name, Dynasty}"| D1
+    L2 -->|"返回摘要<br/>{Id, Title, AuthorName}"| D2
+    L3 -->|"返回 ID 列表"| D3
+
+    style L1 fill:#3a2a1a,stroke:#d4a76a,color:#d4a76a
+    style L2 fill:#3a2a1a,stroke:#d4a76a,color:#d4a76a
+    style L3 fill:#3a2a1a,stroke:#d4a76a,color:#d4a76a
+    style D1 fill:#1a2a1a,stroke:#a5d6a7,color:#a5d6a7
+    style D2 fill:#1a2a1a,stroke:#a5d6a7,color:#a5d6a7
+    style D3 fill:#1a2a1a,stroke:#a5d6a7,color:#a5d6a7
+```
+
+- **List 端点**：只返回 4\~6 个字段的摘要（Id、Name、Dynasty 等），不含子表数据。用于浏览和发现 ID。
+- **Detail 端点**：后端从多张 DB 表 JOIN 出完整 JSON，一次返回主表 + 全部 1:N 子表。
+
+#### 后端拼装 vs 爬虫拆回
+
+以 `GET /api/people/{id}` 为例，后端和爬虫的数据流方向相反：
+
+```mermaid
+graph LR
+    subgraph "后端（DB → JSON）"
+        T1["person 表<br/>Id=15188, Name=李白"]
+        T2["person_alias 表<br/>太白/青莲居士/谪仙人"]
+        T3["person_hometown 表<br/>CN510782 绵州昌隆"]
+        T4["person_detail 表<br/>中国历代人名大辞典..."]
+        JOIN["后端 JOIN<br/>拼装为 JSON"]
+        T1 --> JOIN
+        T2 --> JOIN
+        T3 --> JOIN
+        T4 --> JOIN
+        JOIN --> API["API Response<br/>{Person, Profile{Aliases[], Hometown[]}, Details[]}"]
+    end
+
+    subgraph "爬虫（JSON → DB）"
+        PARSE["解析 JSON"]
+        W1["INSERT person"]
+        W2["INSERT person_alias ×3"]
+        W3["INSERT person_hometown ×1"]
+        W4["INSERT person_detail ×2"]
+        API --> PARSE
+        PARSE --> W1
+        PARSE --> W2
+        PARSE --> W3
+        PARSE --> W4
+    end
+
+    style T1 fill:#3a2a1a,stroke:#d4a76a,color:#d4a76a
+    style T2 fill:#1a2a3a,stroke:#90caf9,color:#90caf9
+    style T3 fill:#1a2a3a,stroke:#90caf9,color:#90caf9
+    style T4 fill:#1a2a3a,stroke:#90caf9,color:#90caf9
+    style JOIN fill:#2a2a2a,stroke:#888,color:#888
+    style API fill:#1a2a1a,stroke:#a5d6a7,color:#a5d6a7
+    style PARSE fill:#2a2a2a,stroke:#888,color:#888
+    style W1 fill:#3a2a1a,stroke:#d4a76a,color:#d4a76a
+    style W2 fill:#1a2a3a,stroke:#90caf9,color:#90caf9
+    style W3 fill:#1a2a3a,stroke:#90caf9,color:#90caf9
+    style W4 fill:#1a2a3a,stroke:#90caf9,color:#90caf9
+```
+
+后端把 4 张表的行拼成一棵 JSON 树；爬虫拿到后再拆回 4 张表的行。**两侧的表结构是对称的。**
+
+#### 各集合的拼装模式
+
+| 集合 | Detail 端点              | 后端 JOIN 的表                            | 嵌套深度 | 一次返回的子数组                                 |
+| -- | ---------------------- | ------------------------------------- | ---- | ---------------------------------------- |
+| 人物 | `GET /people/{id}`     | person + alias + hometown + detail    | 3 层  | `Aliases[]`, `Hometown[]`, `Details[]`   |
+| 诗文 | `GET /writing/{id}`    | writing + clause + comment + allusion | 2 层  | `Clauses[]`, `Comments[]`, `Allusions[]` |
+| 地理 | `GET /map/region/{id}` | region + history                      | 2 层  | `Histories[]`                            |
+| 古籍 | `GET /book/{id}`       | book + version + volume               | 3 层  | `Versions[].Volumes[]`（嵌套数组）             |
+| 字典 | `GET /char/{char}`     | modern + kangxi + shuowen             | 5 层  | 3 部字典各有 2\~3 层子数组                        |
+| 类书 | `GET /category/{book}` | class + item + volume metadata        | 3 层  | `Categories[].Items[].VolumeIds[]`       |
+
+#### 跨域 FK：只暴露 ID，不展开
+
+后端在拼装时遵循一个边界：**同一集合内的表会 JOIN 展开，跨集合的 FK 只暴露 ID 值**，不做嵌套解析。
+
+```mermaid
+graph LR
+    subgraph "人物域（内部展开）"
+        P["person<br/>Id=15188"] --> PA["person_alias<br/>直接嵌为 Aliases[]"]
+        P --> PH["person_hometown<br/>直接嵌为 Hometown[]"]
+    end
+    subgraph "跨域（只暴露 ID）"
+        PH -.- RID["RegionId: 'CN510782'<br/>❌ 不展开为 Region 对象"]
+        BA["Book.AuthorIds: [3157]<br/>❌ 不展开为 Person 对象"]
+        WA["WritingAllusion.allusion_key<br/>❌ 不展开为 Glossary 对象"]
+    end
+
+    style P fill:#1a2a1a,stroke:#a5d6a7,color:#a5d6a7
+    style PA fill:#1a2a3a,stroke:#90caf9,color:#90caf9
+    style PH fill:#1a2a3a,stroke:#90caf9,color:#90caf9
+    style RID fill:#2a1a1a,stroke:#ff5252,color:#ff8a80
+    style BA fill:#2a1a1a,stroke:#ff5252,color:#ff8a80
+    style WA fill:#2a1a1a,stroke:#ff5252,color:#ff8a80
+```
+
+例子：
+
+- `person_hometown.RegionId = "CN510782"` — 只返回 ID 字符串，不嵌套展开为完整的 Region 对象
+- `Book.AuthorIds = [3157]` — 只返回 ID 数组，不展开为 Person 对象
+- `WritingAllusion.allusion_key = "黍离"` — 返回文本，不展开为 Glossary 对象
+
+要追踪这些跨域关联，客户端必须自己再发一次请求（如 `GET /map/region/CN510782`）。这就是文档中多处标注的「断裂点」。
+
+#### 特殊模式：递归树（地理）
+
+唯一不遵循「一次返回全部子数据」的集合是**地理**。region 之间是 parent\_id 自引用的树结构，后端不会一次性返回整棵树，而是每次只返回**一个节点 + 它的 Histories**，通过 `HasChild` 布尔值告诉客户端是否有子节点。
+
+```mermaid
+graph TD
+    R0["GET /map/region/CN<br/>返回: Region + Histories<br/>HasChild=true"] --> R1A["GET /map/region/CN11<br/>北京市"]
+    R0 --> R1B["GET /map/region/CN12<br/>天津市"]
+    R0 --> R1C["GET /map/region/CN13<br/>..."]
+
+    R1A --> R2A["GET /map/region/CN1101<br/>东城区"]
+    R1A --> R2B["GET /map/region/CN1102<br/>西城区"]
+
+    style R0 fill:#3a2a1a,stroke:#d4a76a,color:#d4a76a
+    style R1A fill:#1a2a1a,stroke:#a5d6a7,color:#a5d6a7
+    style R1B fill:#1a2a1a,stroke:#a5d6a7,color:#a5d6a7
+    style R1C fill:#1a2a1a,stroke:#a5d6a7,color:#a5d6a7
+    style R2A fill:#1a2a3a,stroke:#90caf9,color:#90caf9
+    style R2B fill:#1a2a3a,stroke:#90caf9,color:#90caf9
+```
+
+这与人物/诗文/古籍的模式不同——那些集合的 detail 端点一次就返回所有子表数据，不需要递归。
+
+#### 爬取策略的影响
+
+| 模式   | 代表                          | 爬取方式                      | 每条数据需要的请求        |
+| ---- | --------------------------- | ------------------------- | ---------------- |
+| 聚合响应 | person, writing, book, char | List 拿 ID → 逐 ID 调 Detail | 1（detail 自带全部子表） |
+| 递归展开 | region                      | 根节点开始 → HasChild 则继续      | 每个节点 1 次（含历史）    |
+| 纯列表  | dynasty, era\_year, rhyme   | 直接拿列表                     | 1 次拿全部           |
+
+聚合响应模式意味着：**请求次数 = 实体数量**。人物有 135K 个，就需要 135K 次请求。这不是 API 设计缺陷，而是数据量本身决定的——任何设计都无法在一次请求中返回 135K 条完整记录。
+
+### 2.4 API 设计风格全景：行业分布与趋势
+
+> 上文分析了 cnkgraph 使用的 REST 模式。在软件工程领域，API 设计风格远不止 REST 一种。以下基于 2025 年行业调查数据，列出主流 API 风格的采用率分布。
+
+#### 采用率分布（2025）
+
+> 数据来源：Postman 2025 State of API Report（10,000+ 开发者）、Nordic APIs / Enterprise Strategy Group 2025 联合研究。百分比表示"团队正在使用该风格的比例"，因此总和 >100%（一个团队通常同时使用多种风格）。
+
+```mermaid
+pie title API 设计风格采用率（2025，团队占比）
+    "REST" : 93
+    "GraphQL" : 52
+    "Webhooks" : 50
+    "gRPC" : 44
+    "SOAP" : 38
+    "WebSockets" : 38
+    "tRPC" : 8
+    "其他（SSE/GraphQL-WS/MCP等）" : 5
+```
+
+#### 八大主流风格速览
+
+| 风格             | 核心思想                                 | 数据格式          | 典型场景                         | 代表产品                       |
+| -------------- | ------------------------------------ | ------------- | ---------------------------- | -------------------------- |
+| **REST**       | 资源 + HTTP 动词（GET/POST/PUT/DELETE）    | JSON          | CRUD、开放 API、移动端              | cnkgraph、GitHub API、Stripe |
+| **GraphQL**    | 客户端声明需要哪些字段，一次取齐                     | JSON          | 前端驱动的聚合查询、减少 over-fetching   | GitHub GraphQL API、Shopify |
+| **gRPC**       | 基于 Protocol Buffers 的强类型 RPC         | Protobuf（二进制） | 微服务间通信、低延迟高吞吐                | Google 内部服务、Kubernetes API |
+| **WebSockets** | 全双工持久连接                              | 帧（文本/二进制）     | 实时聊天、股票行情、协作编辑               | Slack、Figma                |
+| **Webhooks**   | 事件驱动的反向 HTTP 回调                      | JSON          | 支付通知、CI/CD 触发、第三方集成          | Stripe、GitHub、Shopify      |
+| **SOAP**       | 基于 XML 的严格协议（WS-\* 标准）               | XML           | 企业 ERP/银行系统集成、强安全要求          | SAP、Salesforce 遗留接口        |
+| **tRPC**       | TypeScript 全栈端到端类型安全                 | JSON          | Next.js / React 全栈项目，前后端共享类型 | Vercel 生态项目                |
+| **MCP**        | Model Context Protocol，AI/LLM 工具调用标准 | JSON-RPC      | AI Agent 调用外部工具、数据源          | Claude Desktop、Cursor      |
+
+#### 各风格与 cnkgraph 的关系
+
+```mermaid
+graph LR
+    subgraph "cnkgraph 使用"
+        REST["REST<br/>全部 71 个端点"]
+        WEBHOOK["Webhooks<br/>❌ 未使用"]
+    end
+
+    subgraph "可能适用的风格"
+        GQL["GraphQL<br/>替代 135K 次 person detail<br/>一条查询取全部字段"]
+        GRPC["gRPC<br/>内部微服务通信<br/>爬虫不适合"]
+        WS["WebSockets<br/>实时数据推送<br/>静态数据无需"]
+        TRPC["tRPC<br/>TS 全栈项目<br/>Python 爬虫不适用"]
+        MCP_M["MCP<br/>让 AI Agent 直接查询<br/>诗词数据库"]
+    end
+
+    REST -.->|"如果 API 支持"| GQL
+    REST -.->|"未来方向"| MCP_M
+
+    style REST fill:#4caf50,stroke:#2e7d32,color:#fff
+    style GQL fill:#e10098,stroke:#9c0065,color:#fff
+    style GRPC fill:#00b1ac,stroke:#007a76,color:#fff
+    style WS fill:#f5a623,stroke:#c47f15,color:#fff
+    style TRPC fill:#3178c6,stroke:#235a9e,color:#fff
+    style MCP_M fill:#7c3aed,stroke:#5b21b6,color:#fff
+```
+
+#### 关键趋势（2024-2025）
+
+1. **REST 仍是绝对主流**（93%），但其"万金油"角色正在被专用风格蚕食
+2. **GraphQL 增长放缓**（从 hype 进入成熟期），适合前端复杂聚合，但不适合批量数据导出
+3. **gRPC 在微服务内部快速普及**（44%），但面向公网的 API 很少使用
+4. **MCP 是 2025 年最值得关注的新协议** — 由 Anthropic 提出，让 LLM/AI Agent 能标准化地调用外部工具和数据源，已被 Claude、Cursor 等广泛采纳
+5. **SOAP 持续衰退**（38%，主要在银行/政府等遗留系统），但不会消失
+
+#### cnkgraph 为什么选 REST？
+
+cnkgraph 的 REST 设计是合理的选择：
+
+- **数据是静态的古典文学数据**，不需要实时推送（排除 WebSockets）
+- **面向公众开放**，REST 的 HTTP 语义最通用（排除 gRPC 的二进制协议）
+- **查询模式固定**（按朝代/人物/作品浏览），不需要客户端自定义字段（排除 GraphQL 的复杂度）
+- **如果未来想支持 AI Agent 查询诗词**，MCP 是最自然的扩展方向
+
 ***
 
 ## 3. 逐集合详细 ER 图
@@ -232,6 +467,44 @@ graph TD
 ```
 
 **断裂点**：`EraYear` 与 `GanZhiYear` 之间无直接外键。`/api/calendar/eraYear/宋绍兴` 返回的详情中包含干支信息，但列表接口不返回。需要逐条调 eraYear 详情才能补全干支映射。
+
+#### 嵌套调用分析
+
+```mermaid
+graph TD
+    subgraph "Layer 0: 1 次"
+        CAL["GET /api/calendar<br/>→ Dynasties[] ~20 条"]
+    end
+    subgraph "Layer 1: ~20 次"
+        DYN["GET /api/calendar/{dynasty}<br/>→ EraYears[] 共 ~761 条"]
+    end
+    subgraph "Layer 2: 60 次（干支）"
+        GZ["GET /api/calendar/GanZhi/{ganzhi}<br/>60甲子 → ~49年/个 ≈ 2,940 行"]
+    end
+
+    CAL -->|"每朝代 1 次"| DYN
+    DYN -.->|"需逐条补全干支"| ERA_DT["GET /api/calendar/eraYear/{name}<br/>~761 次（可选）"]
+    CAL -.->|"60 个干支值"| GZ
+
+    GZ --> GZ_OUT["ganzhi_year 表<br/>~2,940 行"]
+    ERA_DT --> ERA_OUT["era_year 补 ganzhi_start 列"]
+
+    style CAL fill:#3a2a1a,stroke:#d4a76a,color:#d4a76a
+    style DYN fill:#1a2a1a,stroke:#a5d6a7,color:#a5d6a7
+    style GZ fill:#1a2a3a,stroke:#90caf9,color:#90caf9
+    style ERA_DT fill:#2a2a2a,stroke:#888,color:#888
+    style GZ_OUT fill:#1a2a1a,stroke:#66bb6a,color:#a5d6a7
+    style ERA_OUT fill:#2a2a2a,stroke:#66bb6a,color:#888
+```
+
+**嵌套深度**：2 层。年历是所有集合中最浅的——干支只需 60 次请求即可获取全部 \~2,940 条记录。
+
+| 任务                  | 请求次数  | 预估时间（concurrency=3） | 说明                |
+| ------------------- | ----- | ------------------- | ----------------- |
+| dynasty + era\_year | \~21  | <1 分钟               | 已完成               |
+| ganzhi\_year        | 60    | \~1 分钟              | 60 甲子，每个返回 \~49 年 |
+| eraYear 详情补全        | \~761 | \~9 分钟              | 补充每个年号的干支信息       |
+| calendar\_date      | \~50K | \~9h                | 逐日期查询（暂不需要）       |
 
 ***
 
@@ -313,6 +586,63 @@ graph TD
 - `PersonHometown.region_id` → `region.id`（跨集合关联，已实现）
 - `Person` ← `Writing.author_id`（主轴关联，已实现）
 
+#### 嵌套调用分析
+
+人物集合是全站嵌套膨胀最严重的集合。列表接口只返回摘要（Id/Name/Surname/Dynasty），要获取别名、籍贯、传记等完整数据，必须逐个调详情接口。
+
+```mermaid
+graph TD
+    subgraph "Layer 0: 1 次"
+        P0["GET /api/people/{dynasty}<br/>→ People[] 摘要列表"]
+    end
+    subgraph "Layer 1: N 次（核心瓶颈）"
+        P1["GET /api/people/{id}<br/>→ Profile{Aliases,Hometown,Details}"]
+    end
+
+    P0 -->|"每个朝代 1 次<br/>共 ~20 次"| P1
+
+    P1 --> PA["person_alias<br/>别名/字号<br/>~3/人"]
+    P1 --> PH["person_hometown<br/>籍贯<br/>~1.2/人"]
+    P1 --> PD["person_detail<br/>传记<br/>~1.5/人"]
+
+    P0 -.- NOTE["❌ 无批量详情接口<br/>只能 GET /people/{id} 逐个查"]
+
+    style P0 fill:#3a2a1a,stroke:#d4a76a,color:#d4a76a
+    style P1 fill:#ff5252,stroke:#ff5252,color:#fff
+    style PA fill:#1a2a3a,stroke:#90caf9,color:#90caf9
+    style PH fill:#1a2a3a,stroke:#90caf9,color:#90caf9
+    style PD fill:#1a2a3a,stroke:#90caf9,color:#90caf9
+    style NOTE fill:#2a1a1a,stroke:#ff5252,color:#ff8a80
+```
+
+**嵌套深度**：2 层，但 Layer 1 膨胀到 \~135K 次（无批量接口）。
+
+**各朝代人物数与时间估算**：
+
+| 朝代     | 人物数           | 占比       | 爬取时间      |
+| ------ | ------------- | -------- | --------- |
+| 明朝     | 38,624        | 28.6%    | \~4.3h    |
+| 清朝     | 34,435        | 25.5%    | \~3.8h    |
+| 宋朝     | 29,389        | 21.8%    | \~3.3h    |
+| 唐朝     | 10,190        | 7.6%     | \~1.1h    |
+| 南北朝    | 5,393         | 4.0%     | \~0.6h    |
+| 元朝     | 5,198         | 3.9%     | \~0.6h    |
+| 汉朝     | 3,947         | 2.9%     | \~0.4h    |
+| 晋朝     | 2,737         | 2.0%     | \~0.3h    |
+| 隋朝     | 1,935         | 1.4%     | \~0.2h    |
+| 金朝     | 1,311         | 1.0%     | \~0.1h    |
+| 三国     | 1,500         | 1.1%     | \~0.2h    |
+| 辽朝     | 388           | 0.3%     | <0.1h     |
+| **合计** | **\~135,047** | **100%** | **\~25h** |
+
+**为什么需要 25 小时？** `GET /api/people/{dynasty}` 列表只返回摘要，`GET /api/people/{id}` 详情包含别名+籍贯+传记。API 没有批量查详情的接口，135K 个人必须逐个请求。以 concurrency=3 \~90 req/min 计算：
+
+```
+135,000 ÷ 90 = 1,500 分钟 ≈ 25 小时
+```
+
+即使拆分到 6 个 CI/CD job 并行，最长的明朝 job 仍需 \~4.3h，总并行耗时 \~4.5h。
+
 ***
 
 ### 3.3 诗文库集合（13 端点）
@@ -322,7 +652,7 @@ graph TD
 这是最大的集合，13 个端点覆盖作品的增、查、搜、标注全流程。
 
 ```mermaid
-graph TD
+graph LR
     WL["GET /api/writing<br/>总览"] --> |"Dynasties[]"| DY["朝代列表"]
     WD["GET /api/writing/{dynasty}"] --> |"Authors[]"| AU["作者列表"]
     WA["GET /api/writing/{dynasty}/{name}/{id}/{type}?pageNo=N"] --> |"Writings[]"| W["Writing<br/>作品主表"]
@@ -414,7 +744,7 @@ graph TD
 **Postman 文件**：`地理.postman_collection.json`
 
 ```mermaid
-graph TD
+graph LR
     RL["GET /api/map/region<br/>总览"] --> |"Regions[]"| R["Region<br/>区域"]
     RI["GET /api/map/region/{id}"] --> |"Region + Histories[]"| R
     RI --> |"Histories[]"| RH["RegionHistory<br/>历史沿革"]
@@ -469,6 +799,63 @@ graph TD
 
 - `Scenery` 表未爬取 — API 返回的景观数据（如黄鹤楼、西湖）无法与 `Writing` 关联
 - `SceneryLink` 中可能包含相关诗文，是地理→作品的重要关联链
+
+#### 嵌套调用分析
+
+地理集合是 **3 层递归树形结构**：省→市→县，每层需逐个 ID 请求才能展开下一层。
+
+```mermaid
+graph TD
+    subgraph "Layer 0: 1 次"
+        R0["GET /api/map/region<br/>→ 根节点 CN + 15 个子区"]
+    end
+    subgraph "Layer 1: ~58 次"
+        R1["GET /api/map/region/{provId}<br/>省/直辖市 → 含 HistoryRecords[]"]
+    end
+    subgraph "Layer 2: ~400 次"
+        R2["GET /api/map/region/{cityId}<br/>地级市 → 含 HistoryRecords[]"]
+    end
+    subgraph "Layer 3: ~3,000 次"
+        R3["GET /api/map/region/{countyId}<br/>区/县 → 含 HistoryRecords[]"]
+    end
+
+    R0 -->|"HasChild=true<br/>~58 个省"| R1
+    R1 -->|"HasChild=true<br/>~400 个市"| R2
+    R2 -->|"HasChild=true<br/>~3,000 个县"| R3
+
+    R1 --> RH1["region_history<br/>~5条/省 ≈ 290"]
+    R2 --> RH2["region_history<br/>~3条/市 ≈ 1,200"]
+    R3 --> RH3["region_history<br/>~1条/县 ≈ 3,000"]
+
+    style R0 fill:#3a2a1a,stroke:#d4a76a,color:#d4a76a
+    style R1 fill:#1a2a1a,stroke:#a5d6a7,color:#a5d6a7
+    style R2 fill:#1a2a3a,stroke:#90caf9,color:#90caf9
+    style R3 fill:#2a2a2a,stroke:#888,color:#888
+    style RH1 fill:#1a2a3a,stroke:#66bb6a,color:#90caf9
+    style RH2 fill:#1a2a3a,stroke:#66bb6a,color:#90caf9
+    style RH3 fill:#2a2a2a,stroke:#66bb6a,color:#888
+```
+
+**嵌套深度**：3 层递归（省→市→县）。每层请求自带 `Histories[]`，不需要额外请求历史沿革。
+
+**数据量膨胀**：
+
+| 层级     | 请求数         | region 行    | region\_history 行 | 说明                 |
+| ------ | ----------- | ----------- | ----------------- | ------------------ |
+| 根      | 1           | 15          | 0                 | CN 总览              |
+| 省      | \~58        | 58          | \~290             | HasChild=true 展开   |
+| 市      | \~400       | 400         | \~1,200           | HasChild=true 展开   |
+| 县      | \~3,000     | 3,000       | \~3,000           | 叶节点，HasChild=false |
+| **合计** | **\~3,458** | **\~3,473** | **\~4,490**       | <br />             |
+
+**时间估算**：
+
+| 任务             | 请求数     | concurrency=3 \~90 req/min |
+| -------------- | ------- | -------------------------- |
+| region 全量（含递归） | \~3,458 | \~39 分钟                    |
+| scenery（如需）    | \~3,473 | \~39 分钟                    |
+
+地理集合虽为 3 层嵌套，但总请求量仅 \~3,500 次，40 分钟内可完成。与人物集合的 135K 次相比，地理是轻量维度。
 
 ***
 
@@ -1376,7 +1763,7 @@ name,begin_year,end_year
 | year              | INTEGER              | 公元年份      | `.Year`          | `1135`      |
 | month             | INTEGER              | 月         | `.Month`         | `7`         |
 | day               | INTEGER              | 日         | `.Day`           | <br />      |
-| ganzhi            | TEXT FK→ganzhi\_year | 日干支       | `.GanZhi`        | `丁酉`        |
+| ganzhi            | TEXT FK→ganzhi\_year | 干支        | `.GanZhi`        | `丁酉`        |
 | weekday           | TEXT                 | 星期        | `.WeekDay`       | <br />      |
 | dynasty           | TEXT FK→dynasty      | 朝代        | `.Dynasty`       | `宋朝`        |
 | era\_name         | TEXT FK→era\_year    | 年号        | `.EraName`       | `绍兴`        |
@@ -2339,4 +2726,282 @@ graph LR
 | P3  | 重写 `crawl-supplement.yml`：去掉全量 dict 矩阵，改为按需任务            | P2 完成       | 1h    |
 | P4  | 爬取 ganzhi\_year + scenery + calendar\_date               | 无依赖         | 6h    |
 | P5  | 爬取 writing\_tone + writing\_link（labelize）               | 无依赖，数据量大可延后 | 按需    |
+
+---
+
+## 8. Postman 集合 vs Swagger 规范 — 端点对比
+
+> 数据源：`postman/*.postman_collection.json`（12 个集合）vs `postman/swagger/swagger.json`（OpenAPI 3.0.4）。
+
+### 8.1 总览
+
+| 指标 | Postman 集合 | Swagger 规范 |
+|------|------------|-------------|
+| 文件数 | 12 个 `.postman_collection.json` | 1 个 `swagger.json` |
+| 唯一端点数 | **52** | **92** |
+| 覆盖模块 | 10 / 12 个 Postman 集合含 API 调用 | 全部模块 |
+| 路径大小写 | 全小写 `/api/writing/{id}` | PascalCase `/api/Writing/{id}` |
+| 参数风格 | 路径用 `{dynasty}`，query 用具体值 | 路径用 `{id}`，query 有 schema 定义 |
+
+```mermaid
+graph TB
+    subgraph shared["Postman ∩ Swagger（42 个端点）"]
+        direction LR
+        S1["Calendar 6"]
+        S2["People 5"]
+        S3["Writing 14"]
+        S4["Map 5"]
+        S5["Book 5"]
+        S6["Rhyme 5"]
+        S7["CiTune 4"]
+        S8["QuTune 3"]
+        S9["Glossary 3"]
+        S10["Category 3"]
+        S11["Char 1"]
+        S12["Tool 4"]
+    end
+
+    subgraph postman_only["仅 Postman（10 个）"]
+        P1["/api/writing/{dynasty}/{author}/{authorid}"]
+        P2["/api/writing/{writingid}/tones"]
+        P3["/api/writing/{writingid}/labelize"]
+        P4["/api/map/scenery/{regionid}"]
+        P5["/api/map/region/{regionid}/links"]
+        P6["/api/writing/couplet/{coupletwords}"]
+    end
+
+    subgraph swagger_only["仅 Swagger（50 个）"]
+        SW1["Biography 6"]
+        SW2["Poem 5"]
+        SW3["Mcp 2"]
+        SW4["SilkRoad 2"]
+        SW5["WeChat 3"]
+        SW6["Label 2"]
+        SW7["Writing 扩展 12"]
+        SW8["Map 扩展 3"]
+        SW9["其他扩展 ~15"]
+    end
+
+    shared --- postman_only
+    shared --- swagger_only
+
+    style shared fill:#1a2a2a,stroke:#4dd0e1,color:#a5d6a7
+    style postman_only fill:#3a2a1a,stroke:#ffa726,color:#ffe0b2
+    style swagger_only fill:#2a1a2a,stroke:#ce93d8,color:#e1bee7
+```
+
+### 8.2 模块级覆盖矩阵
+
+```mermaid
+quadrantChart
+    title API 模块覆盖矩阵
+    x-axis "Postman 覆盖少" --> "Postman 覆盖多"
+    y-axis "Swagger 覆盖少" --> "Swagger 覆盖多"
+    quadrant-1 "Swagger 主导"
+    quadrant-2 "全面覆盖"
+    quadrant-3 "低覆盖"
+    quadrant-4 "Postman 主导"
+    Calendar: [0.95, 0.95]
+    People: [0.75, 0.85]
+    Writing: [0.70, 0.95]
+    Map: [0.65, 0.80]
+    Book: [0.90, 0.85]
+    Rhyme: [1.00, 0.90]
+    CiTune: [0.85, 0.80]
+    QuTune: [0.85, 0.75]
+    Glossary: [0.75, 0.65]
+    Category: [0.85, 0.80]
+    Char: [1.00, 1.00]
+    Tool: [0.65, 0.90]
+    Biography: [0.00, 0.95]
+    Poem: [0.00, 0.90]
+    Mcp: [0.00, 0.30]
+    SilkRoad: [0.00, 0.50]
+    WeChat: [0.00, 0.50]
+    Label: [0.00, 0.40]
+```
+
+### 8.3 逐模块对比
+
+#### Calendar — 完全一致 ✅
+
+| 端点 | Postman | Swagger | 差异 |
+|------|---------|---------|------|
+| `GET /calendar` | ✅ | ✅ | — |
+| `GET /calendar/{dynasty}` | ✅ | ✅ | — |
+| `GET /calendar/date/{key}` | ✅ | ✅ | — |
+| `GET /calendar/date/{key}/links` | ✅ | ✅ | — |
+| `GET /calendar/erayear/{key}` | ✅ | ✅ | — |
+| `GET /calendar/ganzhi/{key}` | ✅ | ✅ | — |
+
+#### People — Swagger 多 3 个
+
+| 端点 | Postman | Swagger | 差异 |
+|------|---------|---------|------|
+| `GET /people` | ✅ | ✅ | — |
+| `GET /people/{dynasty}` | ✅ | — | Postman 按 `{dynasty}` 查，Swagger 按 `{id}` 查 |
+| `GET /people/{id}` | ✅ | ✅ | — |
+| `POST /people/find` | ✅ | ✅ | — |
+| `GET /people/{id}/mapinfo` | — | ✅ | Swagger 独有 |
+| `GET /people/{id}/mentionship` | — | ✅ | Swagger 独有 |
+| `GET /people/{id}/mentionship/{targetid}` | — | ✅ | Swagger 独有 |
+
+#### Writing — Swagger 多 12 个
+
+| 端点 | Postman | Swagger | 差异 |
+|------|---------|---------|------|
+| `GET /writing` | ✅ | ✅ | — |
+| `GET /writing/{dynasty}` | ✅ | — | Postman 独有（按朝代列表） |
+| `GET /writing/{dynasty}/{author}/{authorid}/{type}` | ✅ | ✅ | — |
+| `GET /writing/{dynasty}/{author}/{authorid}` | ✅ | — | Postman 独有（省略 type） |
+| `GET /writing/{id}` | ✅ | ✅ | — |
+| `GET /writing/{id}/booklinks` | ✅ | ✅ | 同一端点，仅大小写不同 |
+| `GET /writing/{id}/tones` | ✅ | ✅ | — |
+| `GET /writing/{id}/labelize` | ✅ | — | Postman 用 `labelize`，Swagger 用 `labeling` |
+| `POST /writing/find` | ✅ | ✅ | — |
+| `GET /writing/couplet/{coupletwords}` | ✅ | — | Postman 独有 |
+| `GET /writing/similarclauses/{key}` | ✅ | ✅ | — |
+| `GET /writing/samerhymes/{key}` | ✅ | ✅ | — |
+| `GET /writing/{id}/booklinks/export` | — | ✅ | Swagger 独有 |
+| `GET /writing/{id}/createdglossary` | — | ✅ | Swagger 独有 |
+| `GET /writing/{id}/mapinfo` | — | ✅ | Swagger 独有 |
+| `GET /writing/{id}/labeling` | — | ✅ | Swagger 用 `labeling` |
+| `GET /writing/author/{authorid}/{region}/{name}` | — | ✅ | Swagger 独有 |
+| `GET /writing/export` | — | ✅ | Swagger 独有 |
+| `GET /writing/haslabel` | — | ✅ | Swagger 独有 |
+| `GET /writing/sameclausepattern/{clause}` | — | ✅ | Swagger 独有 |
+| `GET /writing/sameclausepattern/{writingid}/{idx}` | — | ✅ | Swagger 独有 |
+| `GET /writing/sameclauses/{key}` | — | ✅ | Swagger 独有 |
+| `GET /writing/sameclauses/{key}/export` | — | ✅ | Swagger 独有 |
+| `GET /writing/similarclauses/{key}/export` | — | ✅ | Swagger 独有 |
+| `GET /writing/usedbycento/author/{authorid}` | — | ✅ | Swagger 独有 |
+
+#### Map — Swagger 多 3 个
+
+| 端点 | Postman | Swagger | 差异 |
+|------|---------|---------|------|
+| `GET /map/region` | ✅ | ✅ | — |
+| `GET /map/region/{key}` | ✅ | ✅ | — |
+| `GET /map/region/{regionid}/links` | ✅ | ✅ | — |
+| `GET /map/scenery/{regionid}` | ✅ | — | Postman 独有（单参数列表） |
+| `GET /map/scenery/{regionid}/{name}` | ✅ | ✅ | — |
+| `GET /map/scenery/{regionid}/{name}/links` | ✅ | ✅ | — |
+| `GET /map/region/{id}/officials/{dynasty}` | — | ✅ | Swagger 独有 |
+| `GET /map/region/{id}/outsideofficials/{dynasty}` | — | ✅ | Swagger 独有 |
+
+#### Biography — 仅 Swagger（6 个）
+
+| 端点 | Postman | Swagger |
+|------|---------|---------|
+| `GET /biography` | — | ✅ |
+| `GET /biography/places` | — | ✅ |
+| `GET /biography/places/{id}` | — | ✅ |
+| `GET /biography/poems/{key}` | — | ✅ |
+| `GET /biography/stat` | — | ✅ |
+| `GET /biography/writingstat` | — | ✅ |
+
+#### Poem — 仅 Swagger（5 个）
+
+| 端点 | Postman | Swagger |
+|------|---------|---------|
+| `GET /poem/{id}` | — | ✅ |
+| `GET /poem/{id}/booklinks` | — | ✅ |
+| `GET /poem/{id}/mapinfo` | — | ✅ |
+| `GET /poem/sameclauses/{key}` | — | ✅ |
+| `GET /poem/samerhymes/{key}` | — | ✅ |
+
+#### 仅 Swagger 的特殊模块
+
+| 模块 | 端点数 | 说明 |
+|------|-------|------|
+| **Mcp** | 2 | AI 代理接口 `/mcp` + `/api/mcp` |
+| **SilkRoad** | 2 | 丝路路线 `/api/silkroad` + `/api/silkroad/{id}` |
+| **WeChat** | 3 | 微信回调 `/api/wechat` + `/api/wechat/message/{text}` + 验证接口 |
+| **Label** | 2 | 标签管理，需登录 |
+
+### 8.4 关键差异总结
+
+```mermaid
+flowchart LR
+    subgraph differences["5 大差异"]
+        D1["① 大小写约定<br/>Postman: lowercase<br/>Swagger: PascalCase"]
+        D2["② Writing 是最大模块<br/>Postman 12 个 vs Swagger 22 个"]
+        D3["③ 6 个 Swagger 独有模块<br/>Biography / Poem / Mcp /<br/>SilkRoad / WeChat / Label"]
+        D4["④ Postman 独有变体<br/>按朝代列表 / scenery 列表 /<br/>couplet 搜索"]
+        D5["⑤ labelize vs labeling<br/>同一功能不同路径名"]
+    end
+
+    differences --> impact["爬虫影响"]
+
+    subgraph impact["爬虫实际影响"]
+        I1["bookLinks: 两者都有，<br/>仅大小写不同 ✅"]
+        I2["Biography/Mentionship:<br/>仅 Swagger，已按 Swagger 实现 ✅"]
+        I3["scenery 列表:<br/>Postman 有但 Swagger 无<br/>需实测确认可用性"]
+        I4["tones/labeling:<br/>两者都有，可安全使用"]
+    end
+
+    style differences fill:#1a2a1a,stroke:#a5d6a7,color:#a5d6a7
+    style impact fill:#1a1a2a,stroke:#90caf9,color:#90caf9
+```
+
+| # | 差异 | 影响评估 |
+|---|------|---------|
+| 1 | **大小写**：Postman 全小写，Swagger PascalCase | 服务端同时接受两种格式（已验证），无影响 |
+| 2 | **Writing 扩展端点**：Swagger 多 12 个（export、sameclauses、haslabel 等） | 大部分为分析/导出功能，爬虫不需要 |
+| 3 | **Biography + Poem 模块**：仅 Swagger 有 | 爬虫已按 Swagger 实现，stage2 用 `GET /biography` |
+| 4 | **scenery 列表**：Postman 有 `GET /map/scenery/{regionid}`（单参数），Swagger 只有 `{regionid}/{name}` 双参数 | 可能是旧版 API，需实测确认 |
+| 5 | **labelize vs labeling**：Postman `/labelize`，Swagger `/labeling` | 疑似同一端点改名，爬虫用 Swagger 版本 |
+| 6 | **Mcp / SilkRoad / WeChat**：仅 Swagger，非公开数据 | 不影响爬虫 |
+
+### 8.5 爬虫端点来源映射
+
+```mermaid
+graph TD
+    subgraph stage1["Stage 1: Calendar"]
+        ST1_1["GET /calendar"]:::postman
+        ST1_2["GET /calendar/{dynasty}"]:::postman
+        ST1_3["GET /calendar/ganzhi/{key}"]:::postman
+        ST1_4["GET /calendar/date/{key}"]:::postman
+        ST1_5["GET /calendar/date/{key}/links"]:::postman
+    end
+
+    subgraph stage2["Stage 2: People"]
+        ST2_1["GET /people/{id}"]:::postman
+        ST2_2["GET /biography"]:::swagger_only
+        ST2_3["GET /people/{id}/mentionship"]:::swagger_only
+        ST2_4["GET /people/{id}/mentionship/{targetid}"]:::swagger_only
+    end
+
+    subgraph stage3["Stage 3: Writing"]
+        ST3_1["GET /writing"]:::postman
+        ST3_2["GET /writing/{dynasty}/{author}/{authorid}/{type}"]:::postman
+        ST3_3["GET /writing/{id}"]:::postman
+        ST3_4["GET /writing/{id}/booklinks"]:::both
+    end
+
+    subgraph stage4["Stage 4: Map"]
+        ST4_1["GET /map/region"]:::postman
+        ST4_2["GET /map/region/{key}"]:::postman
+        ST4_3["GET /map/scenery/{regionid}/{name}"]:::postman
+    end
+
+    subgraph stage5["Stage 5: Reference"]
+        ST5_1["GET /book"]:::postman
+        ST5_2["GET /book/{id}"]:::postman
+        ST5_3["POST /book/find"]:::postman
+        ST5_4["GET /glossary/{category}/{id}"]:::postman
+        ST5_5["GET /char/{key}"]:::postman
+        ST5_6["GET /rhyme/{book}"]:::postman
+        ST5_7["GET /citune"]:::postman
+        ST5_8["GET /qptune"]:::postman
+        ST5_9["GET /category"]:::postman
+        ST5_10["GET /category/{book}"]:::postman
+    end
+
+    classDef postman fill:#1a2a2a,stroke:#4dd0e1,color:#a5d6a7
+    classDef swagger_only fill:#2a1a2a,stroke:#ce93d8,color:#e1bee7
+    classDef both fill:#2a2a1a,stroke:#ffd54f,color:#fff9c4
+```
+
+> **结论**：爬虫当前使用的 30+ 个端点中，约 80% 来自 Postman 集合（两个文档都包含），仅 Biography 和 Mentionship 的 3 个端点完全依赖 Swagger。`bookLinks` 端点两份文档均有记录（仅大小写不同），服务端均接受。
 

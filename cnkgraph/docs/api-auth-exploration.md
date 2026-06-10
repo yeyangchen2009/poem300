@@ -10,22 +10,22 @@
 
 cnkgraph API 有 12 个 Postman 集合，分两批：
 
-| 批次 | 集合 | 端点数 | 状态 |
-|------|------|--------|------|
-| 第一批（已爬取） | 年历、人物、诗文库、地理、词谱、曲谱、韵典 | 37 | 已写入 ODS 15 张表 |
-| 第二批（未爬取） | 词汇典故、古籍库、类书、工具、字典 | 22 | 标记为"需微信认证" |
+| 批次       | 集合                    | 端点数 | 状态            |
+| -------- | --------------------- | --- | ------------- |
+| 第一批（已爬取） | 年历、人物、诗文库、地理、词谱、曲谱、韵典 | 37  | 已写入 ODS 15 张表 |
+| 第二批（未爬取） | 词汇典故、古籍库、类书、工具、字典     | 22  | 标记为"需微信认证"    |
 
 第一批用 `crawl-tang300.py` 和 `crawl-juan11.py` 顺利完成爬取。第二批在初始测试时返回了微信登录页面 HTML，被标记为需要 WeChat OAuth2.0 认证。
 
 ### 1.2 第二批 API 的潜在价值
 
-| 集合 | 内容 | 学术价值 |
-|------|------|---------|
+| 集合    | 内容       | 学术价值          |
+| ----- | -------- | ------------- |
 | 词汇、典故 | 词典、典故、佛典 | 诗词用典深度分析、词频研究 |
-| 古籍库 | 四部全书全文 | 全文检索、古籍数字化研究 |
-| 类书 | 古今图书集成等 | 古代百科全书、知识图谱 |
-| 字典 | 康熙+说文+现代 | 汉字音韵演变研究 |
-| 工具 | 繁简转换、笺注 | 实时工具，非批量数据 |
+| 古籍库   | 四部全书全文   | 全文检索、古籍数字化研究  |
+| 类书    | 古今图书集成等  | 古代百科全书、知识图谱   |
+| 字典    | 康熙+说文+现代 | 汉字音韵演变研究      |
+| 工具    | 繁简转换、笺注  | 实时工具，非批量数据    |
 
 ```mermaid
 graph TB
@@ -67,13 +67,13 @@ graph TB
 
 **问题**：没有查看 Postman 集合文件中的**实际路径**，而是根据 API 功能名称自己**猜测**了 URL：
 
-| 猜测的路径 | 结果 | 结论 |
-|-----------|------|------|
-| `/api/Allusion/AllusionList` | 404 Not Found | API 不存在？ |
-| `/api/Allusion/TypeList` | 404 Not Found | 需要认证？ |
-| `/api/Book/Search?keyword=诗经` | 405 Method Not Allowed | 方法不对 |
-| `/api/Dictionary/DictList?keyword=风` | 空响应 | 被拦截？ |
-| `/api/Leishu/Search?keyword=诗` | 404 Not Found | 不存在 |
+| 猜测的路径                                | 结果                     | 结论       |
+| ------------------------------------ | ---------------------- | -------- |
+| `/api/Allusion/AllusionList`         | 404 Not Found          | API 不存在？ |
+| `/api/Allusion/TypeList`             | 404 Not Found          | 需要认证？    |
+| `/api/Book/Search?keyword=诗经`        | 405 Method Not Allowed | 方法不对     |
+| `/api/Dictionary/DictList?keyword=风` | 空响应                    | 被拦截？     |
+| `/api/Leishu/Search?keyword=诗`       | 404 Not Found          | 不存在      |
 
 ```mermaid
 graph TD
@@ -103,7 +103,7 @@ Postman 集合文件就在 `cnkgraph/postman/` 目录下，每个集合都有完
 
 1. 访问 `https://cnkgraph.com/Auth/WeChatLogin` → 看到扫码登录页面
 2. Web 搜索 cnkgraph 认证方式 → 确认为 WeChat OAuth2.0
-3. 分析登录流程：扫码 → 获取 code → 换取 access_token → session cookie
+3. 分析登录流程：扫码 → 获取 code → 换取 access\_token → session cookie
 
 ```mermaid
 sequenceDiagram
@@ -131,27 +131,27 @@ sequenceDiagram
 
 从 5 个集合文件中提取到的信息：
 
-| 集合 | 端点 | 方法 | 路径 |
-|------|------|------|------|
-| 词汇典故 | 按词汇 Id 查询 | GET | `/api/glossary/词典/10` |
-| 词汇典故 | 按典故 Id 查询 | GET | `/api/glossary/典故/1000` |
-| 词汇典故 | 按佛典 Id 查询 | GET | `/api/glossary/佛典/100` |
-| 词汇典故 | 批量查词典 | POST | `/api/glossary/词典` body:`[10,15,30,42]` |
-| 词汇典故 | 关键词查典故 | POST | `/api/glossary/典故/find` body:`{"key":"桃花"}` |
-| 古籍库 | 古籍总览 | GET | `/api/book` |
-| 古籍库 | 分类书目 | GET | `/api/book/史部/正史类` |
-| 古籍库 | 书本详情 | GET | `/api/book/2180` |
-| 古籍库 | 卷册内容 | GET | `/api/book/volume/KR4h0140_024` |
-| 古籍库 | 关键词搜索 | POST | `/Api/Book/Find` body:`{"key":"黄鹤楼"}` |
-| 类书 | 类书列表 | GET | `/api/category` |
-| 类书 | 类书目录 | GET | `/api/category/钦定古今图书集成` |
-| 类书 | 条目卷册 | GET | `/api/category/.../0002/KR7a0001_018` |
-| 类书 | 关键词搜索 | POST | `/api/category/find` body:`{"key":"潮州"}` |
-| 工具 | 简转繁 | POST | `/api/tool/charsetConvert` |
-| 工具 | 自动笺注 | POST | `/api/tool/labelize` |
-| 工具 | 出处分析 | POST | `/api/tool/reference` |
-| 工具 | 短信查询 | POST | `/api/tool/texting` |
-| 字典 | 查字 | GET | `/api/char/中` |
+| 集合   | 端点        | 方法   | 路径                                          |
+| ---- | --------- | ---- | ------------------------------------------- |
+| 词汇典故 | 按词汇 Id 查询 | GET  | `/api/glossary/词典/10`                       |
+| 词汇典故 | 按典故 Id 查询 | GET  | `/api/glossary/典故/1000`                     |
+| 词汇典故 | 按佛典 Id 查询 | GET  | `/api/glossary/佛典/100`                      |
+| 词汇典故 | 批量查词典     | POST | `/api/glossary/词典` body:`[10,15,30,42]`     |
+| 词汇典故 | 关键词查典故    | POST | `/api/glossary/典故/find` body:`{"key":"桃花"}` |
+| 古籍库  | 古籍总览      | GET  | `/api/book`                                 |
+| 古籍库  | 分类书目      | GET  | `/api/book/史部/正史类`                          |
+| 古籍库  | 书本详情      | GET  | `/api/book/2180`                            |
+| 古籍库  | 卷册内容      | GET  | `/api/book/volume/KR4h0140_024`             |
+| 古籍库  | 关键词搜索     | POST | `/Api/Book/Find` body:`{"key":"黄鹤楼"}`       |
+| 类书   | 类书列表      | GET  | `/api/category`                             |
+| 类书   | 类书目录      | GET  | `/api/category/钦定古今图书集成`                    |
+| 类书   | 条目卷册      | GET  | `/api/category/.../0002/KR7a0001_018`       |
+| 类书   | 关键词搜索     | POST | `/api/category/find` body:`{"key":"潮州"}`    |
+| 工具   | 简转繁       | POST | `/api/tool/charsetConvert`                  |
+| 工具   | 自动笺注      | POST | `/api/tool/labelize`                        |
+| 工具   | 出处分析      | POST | `/api/tool/reference`                       |
+| 工具   | 短信查询      | POST | `/api/tool/texting`                         |
+| 字典   | 查字        | GET  | `/api/char/中`                               |
 
 ```mermaid
 graph TD
@@ -170,6 +170,7 @@ graph TD
 ```
 
 **关键发现**：
+
 - 真实路径全部是**小写英文**（`glossary`、`book`、`category`、`char`），不是猜测的 PascalCase 中文拼音混合
 - Postman 的 `{{host}}` 变量指向 `api.cnkgraph.com`（API 子域），不是 `cnkgraph.com`（前端主站）
 - 古籍搜索是个特例：路径为 PascalCase `/Api/Book/Find`（注意 `Api` 大写 A），且 host 写死而非使用变量
@@ -179,7 +180,7 @@ graph TD
 用 Python requests 对所有 22 个端点逐一测试：
 
 ```mermaid
-graph TD
+graph LR
     subgraph "测试 1: 词汇典故 GET"
         T1["GET /api/glossary/词典/10"] --> |"HTTP 200"| R1["✅ Word: 青山<br/>From: 漢語大詞典"]
         T2["GET /api/glossary/典故/1000"] --> |"HTTP 200"| R2["✅ CountInWritings + Explains"]
@@ -262,14 +263,14 @@ graph LR
 
 最终估算：
 
-| API | 最大 ID 范围 | 预估记录数 |
-|-----|-------------|-----------|
-| 词典 | 525,000 ~ 526,000 | **~525K** |
-| 典故 | 11,106 ~ 11,112 | **~11K** |
-| 佛典 | 37,000 ~ 37,500 | **~37K** |
-| 古籍库 | — | **16,221 部** |
-| 类书 | — | **8 部** |
-| 字典 | CJK 字符集 | **数千字** |
+| API | 最大 ID 范围           | 预估记录数        |
+| --- | ------------------ | ------------ |
+| 词典  | 525,000 \~ 526,000 | **\~525K**   |
+| 典故  | 11,106 \~ 11,112   | **\~11K**    |
+| 佛典  | 37,000 \~ 37,500   | **\~37K**    |
+| 古籍库 | —                  | **16,221 部** |
+| 类书  | —                  | **8 部**      |
+| 字典  | CJK 字符集            | **数千字**      |
 
 ***
 
@@ -277,21 +278,21 @@ graph LR
 
 ### 坑 #1：猜测 URL 而非查看源文件
 
-| 做法 | 结果 |
-|------|------|
-| 根据功能名猜测 `/api/Allusion/AllusionList` | 404 |
-| 根据功能名猜测 `/api/Dictionary/DictList` | 空响应 |
-| 根据功能名猜测 `/api/Leishu/Search` | 404 |
+| 做法                                        | 结果             |
+| ----------------------------------------- | -------------- |
+| 根据功能名猜测 `/api/Allusion/AllusionList`      | 404            |
+| 根据功能名猜测 `/api/Dictionary/DictList`        | 空响应            |
+| 根据功能名猜测 `/api/Leishu/Search`              | 404            |
 | **查看 Postman 文件** `/api/glossary/典故/1000` | **HTTP 200 ✅** |
 
 **教训**：API 文档/集合文件就在手边时，不要凭直觉猜测 URL。先读文件，再动手。
 
 ### 坑 #2：混淆前端页面和 API 端点
 
-| 域名 | 用途 | 需要登录 |
-|------|------|---------|
-| `cnkgraph.com` | 前端网站 | 部分**页面**需要微信登录 |
-| `api.cnkgraph.com` | API 服务 | **不需要**任何认证 |
+| 域名                 | 用途     | 需要登录           |
+| ------------------ | ------ | -------------- |
+| `cnkgraph.com`     | 前端网站   | 部分**页面**需要微信登录 |
+| `api.cnkgraph.com` | API 服务 | **不需要**任何认证    |
 
 访问 `cnkgraph.com/Glossary`（前端页面）会弹出登录框，但 `api.cnkgraph.com/api/glossary/词典/10`（API 端点）直接返回数据。**前端路由 ≠ API 路由**。
 
@@ -322,9 +323,9 @@ $ python -c "import requests; r = requests.get('...'); print(r.json()['Word'])"
 //                                 ^^^ 大写 A          ^^^^ PascalCase
 ```
 
-| 端点 | Host | Path 大小写 |
-|------|------|-----------|
-| 全部 21 个端点 | `{{host}}`（变量） | 小写 `/api/...` |
+| 端点               | Host                   | Path 大小写                    |
+| ---------------- | ---------------------- | --------------------------- |
+| 全部 21 个端点        | `{{host}}`（变量）         | 小写 `/api/...`               |
 | `/Api/Book/Find` | `api.cnkgraph.com`（写死） | PascalCase `/Api/Book/Find` |
 
 如果照搬其他端点的模式 `/api/book/find`，会得到 404。**同一个集合内部也存在路径风格不一致**。
@@ -333,13 +334,13 @@ $ python -c "import requests; r = requests.get('...'); print(r.json()['Word'])"
 
 不同端点的 POST body 格式各不相同，不能一概而论：
 
-| 端点 | Body 格式 | 说明 |
-|------|----------|------|
-| `/api/glossary/词典` | `[10, 15, 30, 42]` | **裸 JSON 数组** |
-| `/api/glossary/典故/find` | `{"key":"桃花","charIndex":"end"}` | JSON 对象 |
-| `/Api/Book/Find` | `{"key":"黄鹤楼","pageNo":1}` | JSON 对象 |
-| `/api/category/find` | `{"key":"潮州"}` | JSON 对象 |
-| `/api/tool/charsetConvert` | `{"content":"...","mode":"..."}` | JSON 对象 |
+| 端点                         | Body 格式                          | 说明            |
+| -------------------------- | -------------------------------- | ------------- |
+| `/api/glossary/词典`         | `[10, 15, 30, 42]`               | **裸 JSON 数组** |
+| `/api/glossary/典故/find`    | `{"key":"桃花","charIndex":"end"}` | JSON 对象       |
+| `/Api/Book/Find`           | `{"key":"黄鹤楼","pageNo":1}`       | JSON 对象       |
+| `/api/category/find`       | `{"key":"潮州"}`                   | JSON 对象       |
+| `/api/tool/charsetConvert` | `{"content":"...","mode":"..."}` | JSON 对象       |
 
 特别注意词典批量查询：body 是**裸数组** `[10,15,30,42]`，不是 `{"ids":[10,15,30,42]}`。后者会报 400 验证错误：
 
@@ -435,7 +436,7 @@ graph TB
 
 ***
 
-### 4.1 词汇典故（5 端点，~573K 条）
+### 4.1 词汇典故（5 端点，\~573K 条）
 
 Postman 文件：`postman/词汇、典故.postman_collection.json`
 
@@ -461,7 +462,7 @@ graph TD
 
 #### 端点 1：按词汇 Id 查询 `GET /api/glossary/词典/{id}`
 
-预估 ~525K 条（二分法：最大 ID 在 525,000~526,000 之间）。
+预估 \~525K 条（二分法：最大 ID 在 525,000\~526,000 之间）。
 
 ```json
 // GET /api/glossary/词典/10 → HTTP 200
@@ -483,22 +484,22 @@ graph TD
 
 **字段说明**：
 
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `Word` | string | 简体词条 |
-| `OriginalWord` | string | 繁体/原始词条 |
-| `From` | string? | 来源词典（如"漢語大詞典"） |
-| `Spellings` | string? | 拼音 |
-| `Explains` | string[] | 释义列表，含 HTML（内链到人物/作品/古籍） |
-| `Categories` | string[]? | 分类标签 |
-| `Kind` | int | 类型标识（1=词典/佛典, 2=典故） |
-| `Id` | int | 唯一 ID |
+| 字段             | 类型         | 说明                       |
+| -------------- | ---------- | ------------------------ |
+| `Word`         | string     | 简体词条                     |
+| `OriginalWord` | string     | 繁体/原始词条                  |
+| `From`         | string?    | 来源词典（如"漢語大詞典"）           |
+| `Spellings`    | string?    | 拼音                       |
+| `Explains`     | string\[]  | 释义列表，含 HTML（内链到人物/作品/古籍） |
+| `Categories`   | string\[]? | 分类标签                     |
+| `Kind`         | int        | 类型标识（1=词典/佛典, 2=典故）      |
+| `Id`           | int        | 唯一 ID                    |
 
 > Explains 中内嵌丰富的超链接：`<a href='/People/15783'>` 指向人物页，`<a href='/Writing/43392'>` 指向诗文页，`<a href='https://cnkgraph.com/Book/2161'>` 指向古籍页。可用于构建知识图谱的关联关系。
 
 #### 端点 2：按典故 Id 查询 `GET /api/glossary/典故/{id}`
 
-预估 ~11K 条（最大 ID ~11,112）。
+预估 \~11K 条（最大 ID \~11,112）。
 
 ```json
 // GET /api/glossary/典故/1000 → HTTP 200
@@ -529,21 +530,21 @@ graph TD
 
 **字段说明**：
 
-| 字段 | 类型 | 说明 |
-|------|------|------|
-| `CountInWritings` | int | 该典故在诗文中出现的次数 |
-| `Keys` | string[] | 典故的所有变体关键词 |
-| `RelatedPersons` | object[]? | 相关人物 |
-| `Correlations` | array? | 关联典故 |
-| `References` | array? | 参考文献 |
-| `Quotes` | object[]? | 引用原文（含 Book 出处 + Content 原文） |
-| `Explains` | string[]? | 释义（本例为 null，典故主要通过 Quotes 展示） |
-| `Kind` | int | 类型标识（2=典故） |
-| `Id` | int | 唯一 ID |
+| 字段                | 类型         | 说明                            |
+| ----------------- | ---------- | ----------------------------- |
+| `CountInWritings` | int        | 该典故在诗文中出现的次数                  |
+| `Keys`            | string\[]  | 典故的所有变体关键词                    |
+| `RelatedPersons`  | object\[]? | 相关人物                          |
+| `Correlations`    | array?     | 关联典故                          |
+| `References`      | array?     | 参考文献                          |
+| `Quotes`          | object\[]? | 引用原文（含 Book 出处 + Content 原文）  |
+| `Explains`        | string\[]? | 释义（本例为 null，典故主要通过 Quotes 展示） |
+| `Kind`            | int        | 类型标识（2=典故）                    |
+| `Id`              | int        | 唯一 ID                         |
 
 #### 端点 3：按佛典 Id 查询 `GET /api/glossary/佛典/{id}`
 
-预估 ~37K 条（最大 ID ~37,500）。
+预估 \~37K 条（最大 ID \~37,500）。
 
 ```json
 // GET /api/glossary/佛典/100 → HTTP 200
@@ -669,15 +670,15 @@ graph TD
 
 **六部分类**：
 
-| 部 | 子类数 | 最大子类 | 书目数 |
-|----|--------|---------|--------|
-| 经部 | 15 | 礼类(255) | — |
-| 史部 | 25 | 政书类(239) | — |
-| 子部 | 21 | 医家类(366) | — |
-| 集部 | 11 | **别集类(3,492)** | — |
-| 佛部 | 22 | **禅宗部类(603)** | — |
-| 道部 | 9 | 洞神部(367) | — |
-| **合计** | **103** | — | **16,221** |
+| 部      | 子类数     | 最大子类           | 书目数        |
+| ------ | ------- | -------------- | ---------- |
+| 经部     | 15      | 礼类(255)        | —          |
+| 史部     | 25      | 政书类(239)       | —          |
+| 子部     | 21      | 医家类(366)       | —          |
+| 集部     | 11      | **别集类(3,492)** | —          |
+| 佛部     | 22      | **禅宗部类(603)**  | —          |
+| 道部     | 9       | 洞神部(367)       | —          |
+| **合计** | **103** | —              | **16,221** |
 
 #### 端点 7：分类书目 `GET /api/book/{category}/{group}`
 
@@ -745,13 +746,13 @@ graph TD
 }
 ```
 
-| 字段 | 说明 |
-|------|------|
+| 字段         | 说明                                               |
+| ---------- | ------------------------------------------------ |
 | `VolumeId` | 卷册 ID（格式如 `KR{code}_{number}`，来自 kanripo.org 编码） |
-| `Text` | 纯文本版本（mandoku-view 格式，含 org-mode 标记） |
-| `Html` | HTML 格式版本（含排版标记） |
+| `Text`     | 纯文本版本（mandoku-view 格式，含 org-mode 标记）             |
+| `Html`     | HTML 格式版本（含排版标记）                                 |
 
-> Text 字段使用 mandoku-view 格式（类似 Emacs org-mode），以 `#+TITLE`、`#+PROPERTY` 等标记开头，正文每行前有空格缩进。平均每卷 ~10K 字符。
+> Text 字段使用 mandoku-view 格式（类似 Emacs org-mode），以 `#+TITLE`、`#+PROPERTY` 等标记开头，正文每行前有空格缩进。平均每卷 \~10K 字符。
 
 #### 端点 10：关键词搜索 `POST /Api/Book/Find`
 
@@ -996,12 +997,12 @@ graph TD
 
 **字典对比**：
 
-| 维度 | 现代汉语词典 | 康熙字典 | 说文解字 |
-|------|------------|---------|---------|
-| 注音方式 | 拼音 (zhōng) | 反切 | 直音/反切 |
-| 释义数量 | ~31 条 (多音多义) | 43 条 | 1 条 (本义+注) |
-| 结构深度 | 读音 → 词性 → 释义 → 例句 | 扁平列表 | 注解文本 |
-| 特色 | 现代用法、Examples | 古义为主 | 字源、字形分析 |
+| 维度   | 现代汉语词典            | 康熙字典 | 说文解字       |
+| ---- | ----------------- | ---- | ---------- |
+| 注音方式 | 拼音 (zhōng)        | 反切   | 直音/反切      |
+| 释义数量 | \~31 条 (多音多义)     | 43 条 | 1 条 (本义+注) |
+| 结构深度 | 读音 → 词性 → 释义 → 例句 | 扁平列表 | 注解文本       |
+| 特色   | 现代用法、Examples     | 古义为主 | 字源、字形分析    |
 
 ***
 
@@ -1109,14 +1110,14 @@ graph TB
 
 **Postman 集合 vs 实测端点对照**：
 
-| Postman 文件 | 端点数 | 实测可用 | 特殊情况 |
-|-------------|--------|---------|---------|
-| `词汇、典故.postman_collection.json` | 5 | 5/5 ✅ | — |
-| `古籍库.postman_collection.json` | 7 | 7/7 ✅ | `/Api/Book/Find` PascalCase |
-| `类书.postman_collection.json` | 6 | 6/6 ✅ | — |
-| `工具.postman_collection.json` | 5 | 4/5 ✅ | `/api/tool/labelize` 404 |
-| `字典.postman_collection.json` | 1 | 1/1 ✅ | — |
-| **合计** | **24** | **23/24** | — |
+| Postman 文件                      | 端点数    | 实测可用      | 特殊情况                        |
+| ------------------------------- | ------ | --------- | --------------------------- |
+| `词汇、典故.postman_collection.json` | 5      | 5/5 ✅     | —                           |
+| `古籍库.postman_collection.json`   | 7      | 7/7 ✅     | `/Api/Book/Find` PascalCase |
+| `类书.postman_collection.json`    | 6      | 6/6 ✅     | —                           |
+| `工具.postman_collection.json`    | 5      | 4/5 ✅     | `/api/tool/labelize` 404    |
+| `字典.postman_collection.json`    | 1      | 1/1 ✅     | —                           |
+| **合计**                          | **24** | **23/24** | —                           |
 
 ***
 
@@ -1147,27 +1148,27 @@ graph TD
 
 ### 5.2 经验教训
 
-| # | 教训 | 详细说明 |
-|---|------|---------|
-| 1 | **先读文档，再动手** | Postman 集合就在 `postman/` 目录，里面有精确的 URL、方法、body。应先提取再测试。 |
-| 2 | **区分前端和 API** | `cnkgraph.com`（前端）的登录要求不等于 `api.cnkgraph.com`（API）的认证要求。 |
-| 3 | **不要过早下结论** | 第一次测试全部失败后，应怀疑自己的 URL 是否正确，而不是立即认定需要认证。 |
-| 4 | **用正确工具测试** | Windows 上 curl 对中文编码有问题，用 Python requests 可避免编码干扰判断。 |
+| # | 教训               | 详细说明                                                                 |
+| - | ---------------- | -------------------------------------------------------------------- |
+| 1 | **先读文档，再动手**     | Postman 集合就在 `postman/` 目录，里面有精确的 URL、方法、body。应先提取再测试。               |
+| 2 | **区分前端和 API**    | `cnkgraph.com`（前端）的登录要求不等于 `api.cnkgraph.com`（API）的认证要求。             |
+| 3 | **不要过早下结论**      | 第一次测试全部失败后，应怀疑自己的 URL 是否正确，而不是立即认定需要认证。                              |
+| 4 | **用正确工具测试**      | Windows 上 curl 对中文编码有问题，用 Python requests 可避免编码干扰判断。                 |
 | 5 | **注意 API 内部不一致** | 同一套 API 中，`/api/book/...` 是小写但 `/Api/Book/Find` 是 PascalCase，需要逐个核对。 |
 
 ### 5.3 如果要爬取这些数据
 
 基于探查结果，爬取方案的初步评估：
 
-| API | 记录数 | 请求量 | 预估耗时 | 难度 |
-|-----|-------|--------|---------|------|
-| 词典 | ~525K | ~525K 次 GET | ~7h (20 req/s) | 中 |
-| 典故 | ~11K | ~11K 次 GET | ~10 min | 低 |
-| 佛典 | ~37K | ~37K 次 GET | ~30 min | 低 |
-| 古籍库 (书目) | 16K | ~16K 次 GET | ~15 min | 低 |
-| 古籍库 (全文) | 数十万卷 | 数十万次 GET | 数天 | 高（数据量极大） |
-| 类书 | 8 部 × 数百条 | ~1K 次 GET | ~5 min | 低 |
-| 字典 | 数千字 | ~数K 次 GET | ~10 min | 低（需确定字符集） |
+| API      | 记录数       | 请求量          | 预估耗时            | 难度        |
+| -------- | --------- | ------------ | --------------- | --------- |
+| 词典       | \~525K    | \~525K 次 GET | \~7h (20 req/s) | 中         |
+| 典故       | \~11K     | \~11K 次 GET  | \~10 min        | 低         |
+| 佛典       | \~37K     | \~37K 次 GET  | \~30 min        | 低         |
+| 古籍库 (书目) | 16K       | \~16K 次 GET  | \~15 min        | 低         |
+| 古籍库 (全文) | 数十万卷      | 数十万次 GET     | 数天              | 高（数据量极大）  |
+| 类书       | 8 部 × 数百条 | \~1K 次 GET   | \~5 min         | 低         |
+| 字典       | 数千字       | \~数K 次 GET   | \~10 min        | 低（需确定字符集） |
 
 ***
 
@@ -1199,3 +1200,4 @@ while hi - lo > 1000:
 print(f'Max ID: {lo}-{hi}')
 "
 ```
+

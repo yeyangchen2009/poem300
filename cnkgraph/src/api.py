@@ -14,8 +14,9 @@ BASE_URL = "https://api.cnkgraph.com/api"
 DEFAULT_TIMEOUT = 30
 DEFAULT_CONCURRENCY = 2
 DEFAULT_DELAY = 0.5
-MAX_RETRIES = 3
-CONSECUTIVE_FAIL_LIMIT = 5
+MAX_RETRIES = 5
+CONSECUTIVE_FAIL_LIMIT = 10
+RATE_LIMIT_COOLDOWN = 60  # seconds to pause after consecutive 429s
 
 
 class CnkgraphClient:
@@ -26,6 +27,7 @@ class CnkgraphClient:
         self.delay = delay
         self._session: aiohttp.ClientSession | None = None
         self._consecutive_fails = 0
+        self._rate_limit_hits = 0
 
     async def _get_session(self) -> aiohttp.ClientSession:
         if self._session is None or self._session.closed:
@@ -72,13 +74,18 @@ class CnkgraphClient:
 
                         data = await resp.json()
                         self._consecutive_fails = 0
+                        self._rate_limit_hits = 0
                         return data
 
                     elif resp.status == 429:
-                        # Rate limited — back off significantly
-                        wait = 30 * (attempt + 1)
+                        self._rate_limit_hits += 1
+                        wait = min(60 * (attempt + 1), 300)
                         print(f"  [RATE LIMIT] 429 on {url}, waiting {wait}s (attempt {attempt + 1}/{MAX_RETRIES})")
                         await asyncio.sleep(wait)
+                        # Global cooldown after multiple consecutive 429s
+                        if self._rate_limit_hits >= 3 and attempt < MAX_RETRIES - 1:
+                            print(f"  [RATE LIMIT] {self._rate_limit_hits} consecutive 429s, cooling {RATE_LIMIT_COOLDOWN}s...")
+                            await asyncio.sleep(RATE_LIMIT_COOLDOWN)
                         continue
 
                     elif resp.status >= 500:

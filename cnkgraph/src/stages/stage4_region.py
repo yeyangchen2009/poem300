@@ -6,13 +6,13 @@ DB: data/cnkgraph.duckdb (unified)
 from db import get_db, get_progress_db, get_progress, upsert_progress, get_row_count, reset_progress
 
 
-async def run(client, reset: bool = False, limit: int = 0):
-    pcon = get_progress_db()
+async def run(client, reset: bool = False, limit: int = 0, author_id: int = None):
     con = get_db()
+    pcon = con
 
     try:
         progress = get_progress(pcon, "region")
-        if progress and progress["status"] == "done" and not reset:
+        if progress and progress["status"] == "done" and not reset and not author_id:
             print("[region] Already done, skipping.")
             return
         if reset:
@@ -21,15 +21,30 @@ async def run(client, reset: bool = False, limit: int = 0):
         region_ids = set()
 
         # Collect region IDs from writing and person tables (same DB now)
-        rows = con.execute("SELECT DISTINCT author_place_raw FROM writing WHERE author_place_raw IS NOT NULL").fetchall()
-        for r in rows:
-            if r[0] and r[0].startswith("CN"):
-                region_ids.add(r[0])
+        if author_id:
+            rows = con.execute(
+                "SELECT DISTINCT author_place_raw FROM writing WHERE author_id = ? AND author_place_raw IS NOT NULL",
+                [author_id]).fetchall()
+            for r in rows:
+                if r[0] and r[0].startswith("CN"):
+                    region_ids.add(r[0])
 
-        rows = con.execute("SELECT DISTINCT region_id FROM person_hometown WHERE region_id IS NOT NULL").fetchall()
-        for r in rows:
-            if r[0]:
-                region_ids.add(r[0])
+            rows = con.execute(
+                "SELECT DISTINCT region_id FROM person_hometown WHERE person_id = ? AND region_id IS NOT NULL",
+                [author_id]).fetchall()
+            for r in rows:
+                if r[0]:
+                    region_ids.add(r[0])
+        else:
+            rows = con.execute("SELECT DISTINCT author_place_raw FROM writing WHERE author_place_raw IS NOT NULL").fetchall()
+            for r in rows:
+                if r[0] and r[0].startswith("CN"):
+                    region_ids.add(r[0])
+
+            rows = con.execute("SELECT DISTINCT region_id FROM person_hometown WHERE region_id IS NOT NULL").fetchall()
+            for r in rows:
+                if r[0]:
+                    region_ids.add(r[0])
 
         print(f"[region] Found {len(region_ids)} unique region IDs to fetch")
         if not region_ids:
@@ -78,8 +93,7 @@ async def run(client, reset: bool = False, limit: int = 0):
         print(f"[region] Done: {get_row_count(con, 'region'):,} regions, "
               f"{get_row_count(con, 'region_history'):,} history, {get_row_count(con, 'scenery'):,} scenery")
     finally:
-        con.close()
-        pcon.close()
+        con.commit(); con.close()
 
 
 def _write_region(con, data: dict):
@@ -87,14 +101,14 @@ def _write_region(con, data: dict):
     rid = region.get("Id")
     if not rid:
         return
-    con.execute("""
-        INSERT INTO region (id, name, latitude, longitude, parent_id, people_count, has_child)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT (id) DO UPDATE SET
-            name = EXCLUDED.name, latitude = EXCLUDED.latitude, longitude = EXCLUDED.longitude,
-            parent_id = EXCLUDED.parent_id, people_count = EXCLUDED.people_count
-    """, [rid, region.get("Name", ""), region.get("Latitude"), region.get("Longitude"),
-          region.get("ParentId"), region.get("PeopleCount", 0), region.get("HasChild", False)])
+    # Skip if already exists (DuckDB FK constraints block UPDATE on referenced rows)
+    existing = con.execute("SELECT id FROM region WHERE id = ?", [rid]).fetchone()
+    if not existing:
+        con.execute("""
+            INSERT INTO region (id, name, latitude, longitude, parent_id, people_count, has_child)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+        """, [rid, region.get("Name", ""), region.get("Latitude"), region.get("Longitude"),
+              region.get("ParentId"), region.get("PeopleCount", 0), region.get("HasChild", False)])
 
     for hr in (region.get("HistoryRecords") or []):
         con.execute("""

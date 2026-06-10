@@ -1,13 +1,15 @@
 """
-Unified DuckDB schema: single database file for all stages + supplement.
+Unified SQLite schema: single database file for all stages + supplement.
 
 File:
-  data/cnkgraph.duckdb — all tables in one database
+  data/cnkgraph.sqlite — all tables in one database (PRD 要求 SQLite)
 
-Tables (30):
-  Stage 1 — Calendar:   dynasty, era_year
-  Stage 2 — People:     person, person_alias, person_hometown, person_detail
-  Stage 3 — Writing:    writing, writing_clause, writing_comment, writing_link, writing_allusion
+Tables (39):
+  Stage 1 — Calendar:   dynasty, king, era_year, ganzhi_year, date_parse, date_link
+  Stage 2 — People:     person, person_alias, person_hometown, person_detail,
+                         biography_activity, mentionship, mentionship_writing
+  Stage 3 — Writing:    writing, writing_clause, writing_comment, writing_link,
+                         writing_allusion, writing_source, writing_tone
   Stage 4 — Region:     region, region_history, scenery
   Stage 5 — Reference:  book, book_volume, glossary, rhyme_entry, rhyme_char,
                          ci_tune, qu_tune, category_entry, char_dict
@@ -18,12 +20,13 @@ Tables (30):
 
 import os
 import datetime
+import sqlite3
 
 DATA_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "data")
-DB_FILE = os.path.join(DATA_DIR, "cnkgraph.duckdb")
+DB_FILE = os.path.join(DATA_DIR, "cnkgraph.sqlite")
 
 # ---------------------------------------------------------------------------
-# Unified DDL — all tables in one database
+# Unified DDL — all tables in one SQLite database
 # ---------------------------------------------------------------------------
 
 DDL = """
@@ -42,11 +45,50 @@ CREATE TABLE IF NOT EXISTS era_year (
     end_year    INTEGER
 );
 
--- ===== Stage 2: People =====
+CREATE TABLE IF NOT EXISTS king (
+    id              INTEGER PRIMARY KEY,
+    name            TEXT,
+    dynasty         TEXT NOT NULL,
+    govern_begin    TEXT,
+    govern_end      TEXT,
+    author_id       INTEGER
+);
 
-CREATE SEQUENCE IF NOT EXISTS person_alias_seq START 1;
-CREATE SEQUENCE IF NOT EXISTS person_hometown_seq START 1;
-CREATE SEQUENCE IF NOT EXISTS person_detail_seq START 1;
+CREATE TABLE IF NOT EXISTS ganzhi_year (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    ganzhi      TEXT NOT NULL,
+    year        INTEGER NOT NULL,
+    link_count  INTEGER DEFAULT 0,
+    UNIQUE(ganzhi, year)
+);
+
+CREATE TABLE IF NOT EXISTS date_parse (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    input_key   TEXT NOT NULL UNIQUE,
+    year        TEXT,
+    year_ganzhi TEXT,
+    month       TEXT,
+    day         TEXT,
+    day_ganzhi  TEXT,
+    era_name    TEXT,
+    era_id      INTEGER,
+    link_count  INTEGER DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS date_link (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    input_key       TEXT NOT NULL,
+    label_type      INTEGER,
+    label_identity  TEXT,
+    resource_type   INTEGER,
+    resource_id     INTEGER,
+    value           TEXT,
+    start           INTEGER,
+    length          INTEGER,
+    weight          INTEGER DEFAULT 0
+);
+
+-- ===== Stage 2: People =====
 
 CREATE TABLE IF NOT EXISTS person (
     id          INTEGER PRIMARY KEY,
@@ -60,7 +102,7 @@ CREATE TABLE IF NOT EXISTS person (
 );
 
 CREATE TABLE IF NOT EXISTS person_alias (
-    id          INTEGER PRIMARY KEY DEFAULT nextval('person_alias_seq'),
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
     person_id   INTEGER NOT NULL REFERENCES person(id),
     name        TEXT NOT NULL,
     type        TEXT NOT NULL,
@@ -68,26 +110,51 @@ CREATE TABLE IF NOT EXISTS person_alias (
 );
 
 CREATE TABLE IF NOT EXISTS person_hometown (
-    id          INTEGER PRIMARY KEY DEFAULT nextval('person_hometown_seq'),
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
     person_id   INTEGER NOT NULL REFERENCES person(id),
     region_id   TEXT,
     name        TEXT
 );
 
 CREATE TABLE IF NOT EXISTS person_detail (
-    id          INTEGER PRIMARY KEY DEFAULT nextval('person_detail_seq'),
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
     person_id   INTEGER NOT NULL REFERENCES person(id),
     book        TEXT,
     content     TEXT,
-    is_review   BOOLEAN DEFAULT FALSE
+    is_review   INTEGER DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS biography_activity (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    person_id       INTEGER NOT NULL REFERENCES person(id),
+    year            INTEGER,
+    date_text       TEXT,
+    place_region_id TEXT,
+    place_detail    TEXT,
+    title           TEXT,
+    activity        TEXT,
+    related_people  TEXT,
+    from_book       TEXT,
+    raw_json        TEXT
+);
+
+CREATE TABLE IF NOT EXISTS mentionship (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    person_id       INTEGER NOT NULL,
+    target_id       INTEGER NOT NULL,
+    target_name     TEXT,
+    direction       TEXT,
+    UNIQUE(person_id, target_id, direction)
+);
+
+CREATE TABLE IF NOT EXISTS mentionship_writing (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    person_id       INTEGER NOT NULL,
+    target_id       INTEGER NOT NULL,
+    writing_id      INTEGER
 );
 
 -- ===== Stage 3: Writing =====
-
-CREATE SEQUENCE IF NOT EXISTS writing_clause_seq START 1;
-CREATE SEQUENCE IF NOT EXISTS writing_comment_seq START 1;
-CREATE SEQUENCE IF NOT EXISTS writing_link_seq START 1;
-CREATE SEQUENCE IF NOT EXISTS writing_allusion_seq START 1;
 
 CREATE TABLE IF NOT EXISTS writing (
     id                  INTEGER PRIMARY KEY,
@@ -107,7 +174,7 @@ CREATE TABLE IF NOT EXISTS writing (
 );
 
 CREATE TABLE IF NOT EXISTS writing_clause (
-    id          INTEGER PRIMARY KEY DEFAULT nextval('writing_clause_seq'),
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
     writing_id  INTEGER NOT NULL REFERENCES writing(id),
     idx         INTEGER NOT NULL,
     content     TEXT NOT NULL,
@@ -115,7 +182,7 @@ CREATE TABLE IF NOT EXISTS writing_clause (
 );
 
 CREATE TABLE IF NOT EXISTS writing_comment (
-    id          INTEGER PRIMARY KEY DEFAULT nextval('writing_comment_seq'),
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
     writing_id  INTEGER NOT NULL REFERENCES writing(id),
     book        TEXT,
     section     TEXT,
@@ -124,7 +191,7 @@ CREATE TABLE IF NOT EXISTS writing_comment (
 );
 
 CREATE TABLE IF NOT EXISTS writing_link (
-    id              INTEGER PRIMARY KEY DEFAULT nextval('writing_link_seq'),
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
     writing_id      INTEGER NOT NULL REFERENCES writing(id),
     label_type      TEXT NOT NULL,
     label_identity  TEXT,
@@ -138,17 +205,29 @@ CREATE TABLE IF NOT EXISTS writing_link (
 );
 
 CREATE TABLE IF NOT EXISTS writing_allusion (
-    id              INTEGER PRIMARY KEY DEFAULT nextval('writing_allusion_seq'),
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
     writing_id      INTEGER NOT NULL REFERENCES writing(id),
     allusion_index  INTEGER,
     allusion_key    TEXT,
     sentence_index  INTEGER
 );
 
--- ===== Stage 4: Region =====
+CREATE TABLE IF NOT EXISTS writing_source (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    writing_id  INTEGER NOT NULL REFERENCES writing(id),
+    content     TEXT NOT NULL
+);
 
-CREATE SEQUENCE IF NOT EXISTS region_history_seq START 1;
-CREATE SEQUENCE IF NOT EXISTS scenery_seq START 1;
+CREATE TABLE IF NOT EXISTS writing_tone (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    writing_id  INTEGER NOT NULL REFERENCES writing(id),
+    clause_idx  INTEGER NOT NULL,
+    char_idx    INTEGER NOT NULL,
+    char        TEXT,
+    tone        TEXT
+);
+
+-- ===== Stage 4: Region =====
 
 CREATE TABLE IF NOT EXISTS region (
     id          TEXT PRIMARY KEY,
@@ -157,11 +236,11 @@ CREATE TABLE IF NOT EXISTS region (
     longitude   REAL,
     parent_id   TEXT,
     people_count INTEGER DEFAULT 0,
-    has_child   BOOLEAN DEFAULT FALSE
+    has_child   INTEGER DEFAULT 0
 );
 
 CREATE TABLE IF NOT EXISTS region_history (
-    id              INTEGER PRIMARY KEY DEFAULT nextval('region_history_seq'),
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
     region_id       TEXT NOT NULL REFERENCES region(id),
     history_id      TEXT,
     name            TEXT NOT NULL,
@@ -178,16 +257,12 @@ CREATE TABLE IF NOT EXISTS region_history (
 );
 
 CREATE TABLE IF NOT EXISTS scenery (
-    id          INTEGER PRIMARY KEY DEFAULT nextval('scenery_seq'),
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
     region_id   TEXT NOT NULL REFERENCES region(id),
     name        TEXT NOT NULL
 );
 
 -- ===== Stage 5: Reference =====
-
-CREATE SEQUENCE IF NOT EXISTS glossary_seq START 1;
-CREATE SEQUENCE IF NOT EXISTS rhyme_entry_seq START 1;
-CREATE SEQUENCE IF NOT EXISTS rhyme_char_seq START 1;
 
 CREATE TABLE IF NOT EXISTS book (
     id          INTEGER PRIMARY KEY,
@@ -204,7 +279,7 @@ CREATE TABLE IF NOT EXISTS book_volume (
 );
 
 CREATE TABLE IF NOT EXISTS glossary (
-    id              INTEGER PRIMARY KEY DEFAULT nextval('glossary_seq'),
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
     glossary_type   TEXT NOT NULL,
     source_id       INTEGER,
     text            TEXT NOT NULL,
@@ -214,14 +289,14 @@ CREATE TABLE IF NOT EXISTS glossary (
 );
 
 CREATE TABLE IF NOT EXISTS rhyme_entry (
-    id          INTEGER PRIMARY KEY DEFAULT nextval('rhyme_entry_seq'),
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
     book        TEXT NOT NULL,
     name        TEXT NOT NULL,
     chars       TEXT
 );
 
 CREATE TABLE IF NOT EXISTS rhyme_char (
-    id          INTEGER PRIMARY KEY DEFAULT nextval('rhyme_char_seq'),
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
     book        TEXT NOT NULL,
     entry_name  TEXT NOT NULL,
     char        TEXT NOT NULL,
@@ -256,11 +331,10 @@ CREATE TABLE IF NOT EXISTS char_dict (
 -- ===== Supplement (on-demand crawl) =====
 
 CREATE TABLE IF NOT EXISTS supplement_glossary (
-    id          INTEGER NOT NULL,
-    kind        INTEGER NOT NULL,
-    PRIMARY KEY (id, kind),
-    word        TEXT,
-    original_word TEXT,
+    id              INTEGER NOT NULL,
+    kind            INTEGER NOT NULL,
+    word            TEXT,
+    original_word   TEXT,
     from_source TEXT,
     spellings   TEXT,
     explains    TEXT,
@@ -271,7 +345,8 @@ CREATE TABLE IF NOT EXISTS supplement_glossary (
     quotes      TEXT,
     correlations TEXT,
     ref_data    TEXT,
-    raw_json    TEXT
+    raw_json    TEXT,
+    PRIMARY KEY (id, kind)
 );
 
 CREATE TABLE IF NOT EXISTS supplement_book (
@@ -326,15 +401,23 @@ CREATE TABLE IF NOT EXISTS crawl_progress (
     page_no     INTEGER DEFAULT 0,
     status      TEXT DEFAULT 'pending',
     row_count   INTEGER DEFAULT 0,
-    updated_at  TIMESTAMP,
+    updated_at  TEXT,
     PRIMARY KEY (module, dynasty, author_id)
 );
 
 -- ===== Indexes =====
 
+CREATE INDEX IF NOT EXISTS idx_king_dynasty ON king(dynasty);
+CREATE INDEX IF NOT EXISTS idx_ganzhi_year_ganzhi ON ganzhi_year(ganzhi);
+CREATE INDEX IF NOT EXISTS idx_date_parse_key ON date_parse(input_key);
+CREATE INDEX IF NOT EXISTS idx_date_link_key ON date_link(input_key);
+
 CREATE INDEX IF NOT EXISTS idx_person_dynasty ON person(dynasty);
 CREATE INDEX IF NOT EXISTS idx_person_alias_person ON person_alias(person_id);
 CREATE INDEX IF NOT EXISTS idx_person_detail_person ON person_detail(person_id);
+CREATE INDEX IF NOT EXISTS idx_biography_person ON biography_activity(person_id);
+CREATE INDEX IF NOT EXISTS idx_mentionship_person ON mentionship(person_id);
+CREATE INDEX IF NOT EXISTS idx_mentionship_writing ON mentionship_writing(person_id);
 
 CREATE INDEX IF NOT EXISTS idx_writing_author ON writing(author_id);
 CREATE INDEX IF NOT EXISTS idx_writing_dynasty ON writing(dynasty);
@@ -346,6 +429,8 @@ CREATE INDEX IF NOT EXISTS idx_writing_link_writing ON writing_link(writing_id);
 CREATE INDEX IF NOT EXISTS idx_writing_link_type ON writing_link(label_type);
 CREATE INDEX IF NOT EXISTS idx_writing_link_region ON writing_link(region_id);
 CREATE INDEX IF NOT EXISTS idx_writing_allusion_writing ON writing_allusion(writing_id);
+CREATE INDEX IF NOT EXISTS idx_writing_source_writing ON writing_source(writing_id);
+CREATE INDEX IF NOT EXISTS idx_writing_tone_writing ON writing_tone(writing_id);
 
 CREATE INDEX IF NOT EXISTS idx_region_parent ON region(parent_id);
 CREATE INDEX IF NOT EXISTS idx_region_history_region ON region_history(region_id);
@@ -360,7 +445,7 @@ CREATE INDEX IF NOT EXISTS idx_book_dynasty ON supplement_book(dynasty);
 CREATE INDEX IF NOT EXISTS idx_category_item_book ON supplement_category_item(book_name);
 """
 
-# Backward compatibility — stage number mapping (no longer needed for DB path)
+# Backward compatibility
 STAGE_NAMES = {
     1: "calendar",
     2: "people",
@@ -370,9 +455,11 @@ STAGE_NAMES = {
 }
 
 STAGE_TABLES = {
-    1: ["dynasty", "era_year"],
-    2: ["person", "person_alias", "person_hometown", "person_detail"],
-    3: ["writing", "writing_clause", "writing_comment", "writing_link", "writing_allusion"],
+    1: ["dynasty", "king", "era_year", "ganzhi_year", "date_parse", "date_link"],
+    2: ["person", "person_alias", "person_hometown", "person_detail",
+        "biography_activity", "mentionship", "mentionship_writing"],
+    3: ["writing", "writing_clause", "writing_comment", "writing_link",
+        "writing_allusion", "writing_source", "writing_tone"],
     4: ["region", "region_history", "scenery"],
     5: ["book", "book_volume", "glossary", "rhyme_entry", "rhyme_char",
         "ci_tune", "qu_tune", "category_entry", "char_dict"],
@@ -391,23 +478,22 @@ def _exec_ddl(con, ddl: str):
         con.execute(stmt)
 
 
-def get_db(stage: int = None) -> "duckdb.DuckDBPyConnection":
-    """Open connection to the unified database and ensure schema exists.
-
-    The `stage` parameter is accepted for backward compatibility but no longer
-    determines which database file to open — everything is in cnkgraph.duckdb.
-    """
-    import duckdb
+def get_db(stage: int = None):
+    """Open connection to the unified SQLite database and ensure schema exists."""
     os.makedirs(DATA_DIR, exist_ok=True)
-    con = duckdb.connect(DB_FILE)
-    con.execute("SET threads=4")
+    con = sqlite3.connect(DB_FILE, timeout=30)
+    con.execute("PRAGMA journal_mode=WAL")
+    con.execute("PRAGMA busy_timeout=30000")
     _exec_ddl(con, DDL)
     return con
 
 
-# Progress is now in the same database
-def get_progress_db() -> "duckdb.DuckDBPyConnection":
-    """Open connection to the crawl_progress table (same unified DB)."""
+def get_progress_db():
+    """Return the same connection — SQLite doesn't support concurrent writers.
+
+    Caller should NOT close this; the data connection owner handles closing.
+    If caller needs its own connection, call get_db() instead.
+    """
     return get_db()
 
 
@@ -479,8 +565,8 @@ def show_status():
         return
 
     try:
-        import duckdb
-        con = duckdb.connect(path, read_only=True)
+        con = sqlite3.connect(path)
+        con.execute("PRAGMA foreign_keys=ON")
         for stage in range(1, 6):
             name = STAGE_NAMES[stage]
             parts = []

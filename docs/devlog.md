@@ -751,3 +751,37 @@ cnkgraph/
                                             +全量爬取策略（5 阶段 + 断点续爬）
   docs/devlog.md                            +本节更新记录
 ```
+
+---
+
+## 2026-06-10 更新记录（十二）— 数据存储 SQLite 化 PRD
+
+### 背景
+
+当前唐诗三百首注音项目以 `dist/data.json`（0.82 MB）为唯一数据产物，前端直接 fetch 加载。JSON 格式不利于查询统计、增量更新，也无法与 cnkgraph SQLite 数据源统一管理。决定将数据存储升级为 SQLite，JSON 降级为导出视图。
+
+### PRD 设计
+
+编写了 [docs/prd-sqlite-migration.md](prd-sqlite-migration.md)，核心决策：
+
+1. **双层架构**：SQLite 为权威数据源，JSON/Markdown 为导出视图
+2. **6 张核心表**：`volume`、`poem`、`poem_line`、`poem_char`、`poet`、`poet_alt_name`
+3. **技术选型**：`better-sqlite3`（同步 API，与 build.js 同步风格一致）
+4. **3 期迁移**：Phase 1 增量写入 SQLite（零风险，JSON 输出不变）→ Phase 2 查询统计 → Phase 3 前端适配
+
+### Schema 设计
+
+```
+volume ──1:N──> poem ──1:N──> poem_line ──1:N──> poem_char
+poet   ──1:N──> poem
+poet   ──1:N──> poet_alt_name
+```
+
+数据量估算：~10 卷 / ~320 首 / ~2,500 行 / ~50,000 字 / ~77 位诗人
+
+### 文件变更
+
+```
+新增:
+  docs/prd-sqlite-migration.md    数据存储 SQLite 化 PRD
+```

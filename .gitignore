@@ -39,5 +39,8 @@ logs/
 
 # cnkgraph
 cnkgraph/postman/
+cnkgraph/data/
+cnkgraph/sql/
+
 
 
