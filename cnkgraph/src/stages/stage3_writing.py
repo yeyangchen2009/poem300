@@ -14,8 +14,20 @@ ALL_DYNASTIES = [
 
 async def run(client, dynasty: str = None, author_id: int = None, reset: bool = False, limit: int = 0):
     if author_id and not dynasty:
-        print("[writing] --author-id requires --dynasty")
-        return
+        # Auto-detect dynasty from person table
+        con = get_db()
+        try:
+            row = con.execute("SELECT dynasty FROM person WHERE id = ?", [author_id]).fetchone()
+            if row and row[0]:
+                dynasty = row[0]
+                print(f"[writing] Auto-detected dynasty for author {author_id}: {dynasty}")
+            else:
+                print(f"[writing] Cannot determine dynasty for author {author_id}. "
+                      f"Run stage 2 first or use --dynasty.")
+                return
+        finally:
+            con.commit(); con.close()
+
     if dynasty and author_id:
         await _crawl_author(client, dynasty, author_id, reset, limit)
     elif dynasty:
@@ -43,8 +55,8 @@ async def _crawl_all(client, reset: bool, limit: int = 0):
 
 
 async def _crawl_dynasty(client, dynasty: str, reset: bool, limit: int = 0):
-    pcon = get_progress_db()
     con = get_db()
+    pcon = con
 
     try:
         progress = get_progress(pcon, "writing", dynasty=dynasty)
@@ -107,13 +119,12 @@ async def _crawl_dynasty(client, dynasty: str, reset: bool, limit: int = 0):
         total = get_row_count(con, "writing")
         print(f"[writing:{dynasty}] Done. Total writings in DB: {total:,}")
     finally:
-        con.close()
-        pcon.close()
+        con.commit(); con.close()
 
 
 async def _crawl_author(client, dynasty: str, author_id: int, reset: bool, limit: int = 0):
-    pcon = get_progress_db()
     con = get_db()
+    pcon = con
 
     try:
         progress = get_progress(pcon, "writing", dynasty=dynasty, author_id=author_id)
@@ -125,15 +136,88 @@ async def _crawl_author(client, dynasty: str, author_id: int, reset: bool, limit
                         [_pk_dynasty(dynasty), author_id])
 
         row = con.execute("SELECT author_name FROM writing WHERE author_id = ? LIMIT 1", [author_id]).fetchone()
+        if not row:
+            row = con.execute("SELECT name FROM person WHERE id = ? LIMIT 1", [author_id]).fetchone()
         author_name = row[0] if row else str(author_id)
         print(f"[writing:{dynasty}] Crawling author: {author_name} (ID: {author_id})")
 
         await _crawl_author_type(con, pcon, client, dynasty, author_name, author_id, "Poem", limit)
+
+        # Fetch allusion keys from detail API (skip if rate-limited)
+        if not client.should_abort:
+            await _crawl_allusion_details(con, pcon, client, author_id, limit)
+        else:
+            print(f"  [allusion] Skipped due to rate limiting. Re-run with --reset to fetch later.")
+
         upsert_progress(pcon, "writing", dynasty, author_id, 0, "done", 0)
         print(f"[writing:{dynasty}] Author {author_name} done.")
     finally:
-        con.close()
-        pcon.close()
+        con.commit(); con.close()
+
+
+async def _crawl_allusion_details(con, pcon, client, author_id: int, limit: int = 0):
+    """Fetch allusion keys from detail API for writings that have allusion_key=NULL."""
+    # Find writings with missing allusion keys (list API doesn't return Allusions field)
+    null_allusion_ids = [r[0] for r in con.execute(
+        "SELECT DISTINCT wa.writing_id FROM writing_allusion wa "
+        "JOIN writing w ON wa.writing_id = w.id "
+        "WHERE w.author_id = ? AND wa.allusion_key IS NULL",
+        [author_id]
+    ).fetchall()]
+    # Also check writings that have no allusion rows at all
+    no_allusion_ids = [r[0] for r in con.execute(
+        "SELECT w.id FROM writing w "
+        "WHERE w.author_id = ? AND w.id NOT IN (SELECT DISTINCT writing_id FROM writing_allusion)",
+        [author_id]
+    ).fetchall()]
+    todo_ids = list(set(null_allusion_ids + no_allusion_ids))
+    if limit:
+        todo_ids = todo_ids[:limit]
+
+    if not todo_ids:
+        print(f"  [allusion] No writings need allusion detail fetch.")
+        return
+
+    print(f"  [allusion] Fetching detail for {len(todo_ids)} writings (to get allusion keys)...")
+    import asyncio as _asyncio
+    updated = 0
+    batch_size = 30
+    consecutive_429 = 0
+    for i, wid in enumerate(todo_ids):
+        if client.should_abort:
+            break
+        detail = await client.get(f"/writing/{wid}")
+        if not detail or not isinstance(detail, dict):
+            if client._rate_limit_hits > 0:
+                consecutive_429 += 1
+                if consecutive_429 >= 3:
+                    print(f"  [allusion] Rate limited {consecutive_429} times, skipping remaining. "
+                          f"Use fix-allusion-keys.py later.")
+                    client.reset_fail_counter()
+                    break
+                print(f"  [allusion] Rate limited at {i+1}/{len(todo_ids)}, pausing 60s...")
+                await _asyncio.sleep(60)
+                client._rate_limit_hits = 0
+            continue
+        consecutive_429 = 0
+        allusions = detail.get("Allusions") or detail.get("Shi", {}).get("Allusions") or []
+        if not allusions:
+            continue
+        con.execute("DELETE FROM writing_allusion WHERE writing_id = ? AND allusion_key IS NULL", [wid])
+        for allusion in allusions:
+            con.execute("""
+                INSERT INTO writing_allusion (writing_id, allusion_index, allusion_key, sentence_index)
+                VALUES (?, ?, ?, ?) ON CONFLICT DO NOTHING
+            """, [wid, allusion.get("Index"), allusion.get("Key"), allusion.get("SentenceIndex")])
+        updated += 1
+        if (i + 1) % 100 == 0:
+            con.commit()
+            print(f"  [allusion] {i+1}/{len(todo_ids)} processed ({updated} updated)")
+        if (i + 1) % batch_size == 0:
+            await _asyncio.sleep(30)
+        else:
+            await _asyncio.sleep(2)
+    print(f"  [allusion] Done: {updated}/{len(todo_ids)} writings had allusions")
 
 
 async def _crawl_author_type(con, pcon, client, dynasty: str, author_name: str,
@@ -174,7 +258,8 @@ async def _crawl_author_type(con, pcon, client, dynasty: str, author_name: str,
             if remaining < len(writings):
                 writings = writings[:remaining]
 
-        _write_writings(con, writings)
+        _write_writings(con, writings, client)
+
         writings_written += len(writings)
         pages_crawled += 1
         page_size = data.get("PageSize", 20)
@@ -194,7 +279,7 @@ async def _crawl_author_type(con, pcon, client, dynasty: str, author_name: str,
     return pages_crawled, writings_written
 
 
-def _write_writings(con, writings: list):
+def _write_writings(con, writings: list, client=None):
     for w in writings:
         wid = w.get("Id")
         if not wid:
@@ -203,18 +288,26 @@ def _write_writings(con, writings: list):
         title_obj = w.get("Title", {})
         title = title_obj.get("Content", "") if isinstance(title_obj, dict) else str(title_obj)
 
-        con.execute("""
-            INSERT INTO writing (id, author_id, author_name, title, dynasty,
-                author_date_raw, author_place_raw, writing_type, type_detail,
-                rhyme, first_clause_rhyme, rank, preface, note)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT (id) DO UPDATE SET
-                title = EXCLUDED.title, author_date_raw = EXCLUDED.author_date_raw,
-                author_place_raw = EXCLUDED.author_place_raw
-        """, [wid, w.get("AuthorId"), w.get("Author", ""), title,
-              w.get("Dynasty"), w.get("AuthorDate"), w.get("AuthorPlace"),
-              w.get("Type"), w.get("TypeDetail"), w.get("Rhyme"),
-              w.get("FirstClauseRhyme"), w.get("Rank", 0), w.get("Preface"), w.get("Note")])
+        # Skip writing row if already exists (DuckDB FK constraints block UPDATE on referenced rows)
+        existing = con.execute("SELECT id FROM writing WHERE id = ?", [wid]).fetchone()
+        if not existing:
+            con.execute("""
+                INSERT INTO writing (id, author_id, author_name, title, dynasty,
+                    author_date_raw, author_place_raw, writing_type, type_detail,
+                    rhyme, first_clause_rhyme, rank, preface, note)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """, [wid, w.get("AuthorId"), w.get("Author", ""), title,
+                  w.get("Dynasty"), w.get("AuthorDate"), w.get("AuthorPlace"),
+                  w.get("Type"), w.get("TypeDetail"), w.get("Rhyme"),
+                  w.get("FirstClauseRhyme"), w.get("Rank", 0), w.get("Preface"), w.get("Note")])
+
+        # Write sources (Shi.Froms)
+        for src in (w.get("Froms") or []):
+            if isinstance(src, str) and src:
+                con.execute("""
+                    INSERT INTO writing_source (writing_id, content)
+                    VALUES (?, ?) ON CONFLICT DO NOTHING
+                """, [wid, src])
 
         for idx, clause in enumerate(w.get("Clauses") or []):
             clause_content = clause.get("Content", "") if isinstance(clause, dict) else str(clause)

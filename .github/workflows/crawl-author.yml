@@ -1,0 +1,73 @@
+name: Crawl cnkgraph (单诗人)
+
+on:
+  workflow_dispatch:
+    inputs:
+      author_id:
+        description: 'Author ID (e.g. 15188=李白, 17270=杜甫)'
+        required: true
+        type: string
+      author_name:
+        description: 'Author name (for display, e.g. 李白)'
+        required: false
+        type: string
+        default: ''
+      reset:
+        description: 'Reset progress (true/false)'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  crawl-author:
+    runs-on: ubuntu-latest
+    timeout-minutes: 360
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        working-directory: cnkgraph
+        run: pip install -r requirements.txt
+
+      - name: Create data directory
+        run: mkdir -p cnkgraph/data
+
+      - name: Run crawler (Stage 1-5)
+        working-directory: cnkgraph
+        run: |
+          ARGS="--author-id ${{ inputs.author_id }}"
+          if [ "${{ inputs.reset }}" = "true" ]; then
+            ARGS="$ARGS --reset"
+          fi
+          python -u src/crawl.py $ARGS
+
+      - name: Fix allusion keys (if any missing)
+        working-directory: cnkgraph
+        run: python -u src/fix-allusion-keys.py
+        continue-on-error: true
+
+      - name: Extract writing links
+        working-directory: cnkgraph
+        run: python -u src/fix-writing-links.py
+        continue-on-error: true
+
+      - name: Fix allusion keys (2nd pass, after links recovered from 429)
+        working-directory: cnkgraph
+        run: python -u src/fix-allusion-keys.py
+        continue-on-error: true
+
+      - name: Show final status
+        working-directory: cnkgraph
+        run: python -u src/crawl.py --status
+
+      - name: Upload SQLite database
+        uses: actions/upload-artifact@v4
+        with:
+          name: cnkgraph-${{ inputs.author_name || inputs.author_id }}
+          path: cnkgraph/data/cnkgraph.sqlite
+          retention-days: 30
